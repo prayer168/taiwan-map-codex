@@ -364,6 +364,18 @@ canvas {
   display: block;
 }
 
+.youtube-fallback {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #0d1725;
+  padding: 0.8rem;
+}
+
+.youtube-fallback a {
+  color: var(--amber);
+  font-weight: 800;
+}
+
 .game-layout {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }

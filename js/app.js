@@ -14,10 +14,12 @@ let micSource;
 let micGain;
 let micMonitorGain;
 let micAnalyser;
-let mediaSource;
+let mediaElementSource;
+let mediaActiveSource;
 let mediaAnalyser;
 let mediaConnected = false;
 let mediaMode = "idle";
+let capturedAudioStream;
 let challengeAnswer = null;
 let quietStart = null;
 let quietGameActive = false;
@@ -367,6 +369,7 @@ function animateMic() {
 const mediaPlayer = document.querySelector("#mediaPlayer");
 const mediaStatus = document.querySelector("#mediaStatus");
 const youtubeEmbed = document.querySelector("#youtubeEmbed");
+const youtubeFallback = document.querySelector("#youtubeFallback");
 
 function getYouTubeId(url) {
   try {
@@ -392,12 +395,43 @@ function resetMediaAnalysis() {
   document.querySelector("#brightnessValue").textContent = "--";
 }
 
+function stopCapturedAudio() {
+  if (capturedAudioStream) {
+    capturedAudioStream.getTracks().forEach((track) => track.stop());
+  }
+  capturedAudioStream = null;
+}
+
+function connectMediaAnalysis(source, context) {
+  if (!mediaAnalyser) {
+    mediaAnalyser = context.createAnalyser();
+    mediaAnalyser.fftSize = 2048;
+  }
+  if (mediaActiveSource && mediaActiveSource !== source) {
+    try {
+      mediaActiveSource.disconnect();
+    } catch {
+      // The node may already be disconnected.
+    }
+    mediaConnected = false;
+  }
+  if (!mediaConnected || mediaActiveSource !== source) {
+    source.connect(mediaAnalyser);
+    mediaAnalyser.connect(context.destination);
+    mediaActiveSource = source;
+    mediaConnected = true;
+  }
+}
+
 document.querySelector("#mediaFile").addEventListener("change", (event) => {
   const file = event.target.files[0];
   if (file) {
     resetMediaAnalysis();
+    stopCapturedAudio();
     youtubeEmbed.hidden = true;
     youtubeEmbed.innerHTML = "";
+    youtubeFallback.hidden = true;
+    youtubeFallback.innerHTML = "";
     mediaPlayer.hidden = false;
     mediaMode = "direct";
     mediaPlayer.src = URL.createObjectURL(file);
@@ -408,21 +442,27 @@ document.querySelector("#loadUrl").addEventListener("click", () => {
   const url = document.querySelector("#mediaUrl").value.trim();
   if (!url) return;
   resetMediaAnalysis();
+  stopCapturedAudio();
   const youtubeId = getYouTubeId(url);
   if (youtubeId) {
+    const safeYouTubeUrl = `https://www.youtube.com/watch?v=${encodeURIComponent(youtubeId)}`;
     mediaPlayer.pause();
     mediaPlayer.removeAttribute("src");
     mediaPlayer.load();
     mediaPlayer.hidden = true;
     mediaMode = "youtube";
+    youtubeFallback.hidden = false;
+    youtubeFallback.innerHTML = `<strong>YouTube 連結</strong><p class="hint">若下方播放器顯示無法載入，請直接開啟 YouTube 原頁播放，再按「擷取分頁音訊」產生音頻圖。</p><a href="${safeYouTubeUrl}" target="_blank" rel="noreferrer">在 YouTube 開啟</a>`;
     youtubeEmbed.hidden = false;
-    youtubeEmbed.innerHTML = `<iframe title="YouTube 播放器" src="https://www.youtube-nocookie.com/embed/${youtubeId}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>`;
-    mediaStatus.textContent = "已載入 YouTube 嵌入播放器。YouTube 可播放，但因跨站安全限制，不能產生音頻圖；要分析請改用本機檔案或直接媒體檔網址。";
-    drawIdle(canvases.media, ctxs.media, "YouTube 可播放，但無法分析聲音");
+    youtubeEmbed.innerHTML = `<iframe title="YouTube 播放器" src="https://www.youtube.com/embed/${youtubeId}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>`;
+    mediaStatus.textContent = "YouTube 可能因影片或瀏覽器限制而無法嵌入載入。若要音頻圖，請播放 YouTube 後按「擷取分頁音訊」。";
+    drawIdle(canvases.media, ctxs.media, "請用擷取分頁音訊分析 YouTube");
     return;
   }
   youtubeEmbed.hidden = true;
   youtubeEmbed.innerHTML = "";
+  youtubeFallback.hidden = true;
+  youtubeFallback.innerHTML = "";
   mediaPlayer.hidden = false;
   mediaMode = "direct";
   mediaPlayer.src = url;
@@ -434,15 +474,10 @@ document.querySelector("#playMedia").addEventListener("click", async () => {
     return;
   }
   const context = await ensureAudio();
-  if (!mediaSource) {
-    mediaSource = context.createMediaElementSource(mediaPlayer);
+  if (!mediaElementSource) {
+    mediaElementSource = context.createMediaElementSource(mediaPlayer);
   }
-  if (!mediaConnected) {
-    mediaAnalyser = context.createAnalyser();
-    mediaAnalyser.fftSize = 2048;
-    mediaSource.connect(mediaAnalyser).connect(context.destination);
-    mediaConnected = true;
-  }
+  connectMediaAnalysis(mediaElementSource, context);
   try {
     await mediaPlayer.play();
     mediaStatus.textContent = "正在分析媒體聲音並產生動態音頻圖。";
@@ -453,11 +488,40 @@ document.querySelector("#playMedia").addEventListener("click", async () => {
 document.querySelector("#pauseMedia").addEventListener("click", () => {
   if (!mediaPlayer.hidden) mediaPlayer.pause();
 });
+document.querySelector("#captureTabAudio").addEventListener("click", async () => {
+  try {
+    const context = await ensureAudio();
+    stopCapturedAudio();
+    capturedAudioStream = await navigator.mediaDevices.getDisplayMedia({
+      video: true,
+      audio: true
+    });
+    const hasAudio = capturedAudioStream.getAudioTracks().length > 0;
+    if (!hasAudio) {
+      capturedAudioStream.getTracks().forEach((track) => track.stop());
+      capturedAudioStream = null;
+      mediaStatus.textContent = "沒有擷取到分頁音訊。請在 Chrome 分享視窗選擇分頁，並勾選「分享分頁音訊」。";
+      return;
+    }
+    const streamSource = context.createMediaStreamSource(capturedAudioStream);
+    connectMediaAnalysis(streamSource, context);
+    mediaMode = "capture";
+    mediaStatus.textContent = "正在分析擷取到的分頁音訊。若是 YouTube，請確認影片正在播放，且分享時有勾選分頁音訊。";
+    capturedAudioStream.getVideoTracks().forEach((track) => {
+      track.addEventListener("ended", () => {
+        mediaMode = "idle";
+        mediaStatus.textContent = "分頁音訊擷取已停止。";
+      });
+    });
+  } catch (error) {
+    mediaStatus.textContent = `無法擷取分頁音訊：${error.message}`;
+  }
+});
 
 function animateMedia() {
   if (mediaMode === "youtube") {
-    drawIdle(canvases.media, ctxs.media, "YouTube 可播放，但無法分析聲音");
-  } else if (mediaMode === "direct" && mediaAnalyser) {
+    drawIdle(canvases.media, ctxs.media, "請用擷取分頁音訊分析 YouTube");
+  } else if ((mediaMode === "direct" || mediaMode === "capture") && mediaAnalyser) {
     const result = drawSpectrum(canvases.media, ctxs.media, mediaAnalyser, "media");
     document.querySelector("#beatEnergy").textContent = result.lowEnergy > 22000 ? "強" : result.lowEnergy > 9000 ? "中" : "弱";
     document.querySelector("#brightnessValue").textContent = result.highEnergy > 28000 ? "明亮" : result.highEnergy > 13000 ? "普通" : "溫和";

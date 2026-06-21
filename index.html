@@ -151,8 +151,10 @@
               <button id="loadUrl">載入連結</button>
               <button id="playMedia" class="primary-action">播放</button>
               <button id="pauseMedia">暫停</button>
+              <button id="captureTabAudio">擷取分頁音訊</button>
             </div>
             <p id="mediaStatus" class="hint">可分析 mp3、wav、ogg、mp4、webm 等直接媒體檔。YouTube 連結可嵌入播放，但瀏覽器不允許直接分析它的聲音。</p>
+            <div id="youtubeFallback" class="youtube-fallback" hidden></div>
             <div id="youtubeEmbed" class="youtube-embed" hidden></div>
             <video id="mediaPlayer" controls playsinline crossorigin="anonymous"></video>
           </article>
