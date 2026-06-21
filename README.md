@@ -31,6 +31,14 @@ npm run start
 
 啟動後開啟 Vite 顯示的本機網址。
 
+## GitHub Pages
+
+部署網址：
+
+```text
+https://prayer168.github.io/Sound_Lab/
+```
+
 ## 專案結構
 
 ```text
@@ -50,4 +58,3 @@ npm run start
 - 麥克風功能需要瀏覽器授權，且通常必須在 localhost 或 HTTPS 環境下執行。
 - 部分影音平台會限制跨站播放，建議使用可直接播放的音訊或影片檔案連結。
 - 分貝數值是瀏覽器端估計值，適合教學觀察，不等同專業校正儀器。
-
