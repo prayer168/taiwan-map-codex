@@ -22,8 +22,9 @@ let mediaMode = "idle";
 let capturedAudioStream;
 let loadedMediaUrl = "";
 let challengeAnswer = null;
-let quietStart = null;
-let quietGameActive = false;
+let bioAnswer = null;
+let bioScore = 0;
+let bioRound = 0;
 
 const canvases = {
   tone: document.querySelector("#toneCanvas"),
@@ -360,7 +361,6 @@ function animateMic() {
       const selectedLabel = micDeviceSelect.selectedOptions[0]?.textContent || "目前裝置";
       document.querySelector("#micStatus").textContent = `${selectedLabel} 已開啟，但目前收到靜音。請從「輸入裝置」改選其他麥克風，或檢查 Windows 輸入音量是否有跳動。`;
     }
-    updateQuietGame(result.db);
   } else if (!micAnalyser) {
     drawIdle(canvases.mic, ctxs.mic, "等待麥克風");
   }
@@ -601,28 +601,198 @@ document.querySelector("#frequencyChoices").addEventListener("click", (event) =>
     button.dataset.choice === challengeAnswer ? "答對了！你的耳朵抓到頻率線索。" : "再試一次。可以注意聲音是沉、清楚、尖，還是幾乎聽不到。";
 });
 
-document.querySelector("#startQuietGame").addEventListener("click", () => {
-  quietGameActive = true;
-  quietStart = null;
-  document.querySelector("#quietFeedback").textContent = "任務開始，試著讓環境安靜下來。";
-});
+const biologicalSounds = [
+  { id: "dog", name: "狗", group: "哺乳類" },
+  { id: "cat", name: "貓", group: "哺乳類" },
+  { id: "frog", name: "青蛙", group: "兩棲類" },
+  { id: "cricket", name: "蟋蟀", group: "昆蟲" },
+  { id: "bee", name: "蜜蜂", group: "昆蟲" },
+  { id: "mosquito", name: "蚊子", group: "昆蟲" },
+  { id: "owl", name: "貓頭鷹", group: "鳥類" },
+  { id: "dolphin", name: "海豚", group: "海洋哺乳類" },
+  { id: "whale", name: "鯨魚", group: "海洋哺乳類" },
+  { id: "rooster", name: "公雞", group: "鳥類" },
+  { id: "cow", name: "牛", group: "哺乳類" },
+  { id: "sheep", name: "羊", group: "哺乳類" },
+  { id: "horse", name: "馬", group: "哺乳類" },
+  { id: "elephant", name: "大象", group: "哺乳類" },
+  { id: "wolf", name: "狼", group: "哺乳類" },
+  { id: "crow", name: "烏鴉", group: "鳥類" },
+  { id: "duck", name: "鴨子", group: "鳥類" },
+  { id: "cicada", name: "蟬", group: "昆蟲" },
+  { id: "monkey", name: "猴子", group: "哺乳類" },
+  { id: "pig", name: "豬", group: "哺乳類" },
+  { id: "snake", name: "蛇", group: "爬蟲類" },
+  { id: "goat", name: "山羊", group: "哺乳類" }
+];
 
-function updateQuietGame(db) {
-  if (!quietGameActive) return;
-  const target = Number(document.querySelector("#quietTarget").value);
-  if (db <= target) {
-    quietStart ??= performance.now();
-  } else {
-    quietStart = null;
+function createNoiseBuffer(context, seconds = 1) {
+  const buffer = context.createBuffer(1, context.sampleRate * seconds, context.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < data.length; i += 1) {
+    data[i] = Math.random() * 2 - 1;
   }
-  const elapsed = quietStart ? (performance.now() - quietStart) / 1000 : 0;
-  document.querySelector("#quietTimer").textContent = `${elapsed.toFixed(1)}s`;
-  document.querySelector("#quietRing").style.background = `conic-gradient(var(--teal) ${Math.min(1, elapsed / 5) * 360}deg, #0b1421 0deg)`;
-  if (elapsed >= 5) {
-    quietGameActive = false;
-    document.querySelector("#quietFeedback").textContent = "成功！你完成 5 秒靜音任務。";
+  return buffer;
+}
+
+function playToneEvent(context, output, { frequency, start, duration, type = "sine", volume = 0.12, endFrequency = null }) {
+  const osc = context.createOscillator();
+  const gain = context.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(frequency, start);
+  if (endFrequency) {
+    osc.frequency.exponentialRampToValueAtTime(Math.max(1, endFrequency), start + duration);
+  }
+  gain.gain.setValueAtTime(0.0001, start);
+  gain.gain.exponentialRampToValueAtTime(volume, start + 0.025);
+  gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+  osc.connect(gain).connect(output);
+  osc.start(start);
+  osc.stop(start + duration + 0.04);
+}
+
+function playNoiseEvent(context, output, { start, duration, frequency = 1200, type = "bandpass", volume = 0.08 }) {
+  const source = context.createBufferSource();
+  const filter = context.createBiquadFilter();
+  const gain = context.createGain();
+  source.buffer = createNoiseBuffer(context, Math.max(0.4, duration + 0.1));
+  filter.type = type;
+  filter.frequency.setValueAtTime(frequency, start);
+  filter.Q.value = 8;
+  gain.gain.setValueAtTime(0.0001, start);
+  gain.gain.exponentialRampToValueAtTime(volume, start + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+  source.connect(filter).connect(gain).connect(output);
+  source.start(start);
+  source.stop(start + duration + 0.04);
+}
+
+async function playBiologicalSound(id) {
+  const context = await ensureAudio();
+  const now = context.currentTime + 0.04;
+  const master = context.createGain();
+  master.gain.value = 0.72;
+  master.connect(context.destination);
+  const tone = (frequency, start, duration, type, volume, endFrequency = null) =>
+    playToneEvent(context, master, { frequency, start: now + start, duration, type, volume, endFrequency });
+  const noise = (start, duration, frequency, type, volume) =>
+    playNoiseEvent(context, master, { start: now + start, duration, frequency, type, volume });
+
+  switch (id) {
+    case "dog":
+      [0, 0.22, 0.62].forEach((t) => { tone(150, t, 0.16, "square", 0.12, 95); noise(t, 0.12, 700, "bandpass", 0.09); });
+      break;
+    case "cat":
+      tone(540, 0, 0.72, "sine", 0.12, 880); tone(920, 0.08, 0.42, "triangle", 0.05, 620);
+      break;
+    case "frog":
+      [0, 0.38, 0.76].forEach((t) => tone(120, t, 0.24, "sawtooth", 0.14, 92));
+      break;
+    case "cricket":
+      [0, 0.08, 0.16, 0.42, 0.5, 0.58].forEach((t) => tone(5200, t, 0.045, "square", 0.055));
+      break;
+    case "bee":
+      [0, 0.18, 0.36, 0.54, 0.72].forEach((t, i) => tone(i % 2 ? 245 : 210, t, 0.18, "sawtooth", 0.06));
+      break;
+    case "mosquito":
+      tone(760, 0, 1.05, "sawtooth", 0.045, 980); tone(1540, 0, 1.05, "sine", 0.025, 1780);
+      break;
+    case "owl":
+      [0, 0.58].forEach((t) => tone(420, t, 0.42, "sine", 0.1, 260));
+      break;
+    case "dolphin":
+      [0, 0.12, 0.24, 0.46, 0.58].forEach((t) => tone(3600, t, 0.08, "sine", 0.08, 7200));
+      break;
+    case "whale":
+      tone(110, 0, 1.2, "sine", 0.16, 54); tone(180, 0.22, 0.95, "triangle", 0.08, 90);
+      break;
+    case "rooster":
+      tone(520, 0, 0.28, "sawtooth", 0.11, 900); tone(780, 0.24, 0.32, "sawtooth", 0.1, 520); tone(1080, 0.55, 0.36, "sawtooth", 0.12, 720);
+      break;
+    case "cow":
+      tone(135, 0, 0.9, "sawtooth", 0.14, 100); tone(220, 0.08, 0.75, "sine", 0.05, 160);
+      break;
+    case "sheep":
+      [0, 0.34].forEach((t) => { tone(300, t, 0.28, "triangle", 0.12, 430); tone(520, t + 0.05, 0.18, "sine", 0.045); });
+      break;
+    case "horse":
+      [0, 0.16, 0.32].forEach((t) => tone(460, t, 0.13, "sawtooth", 0.1, 260)); noise(0.52, 0.24, 1400, "highpass", 0.05);
+      break;
+    case "elephant":
+      tone(62, 0, 0.72, "sawtooth", 0.18, 140); tone(220, 0.08, 0.44, "triangle", 0.08, 360);
+      break;
+    case "wolf":
+      tone(260, 0, 1.1, "sine", 0.12, 690); tone(520, 0.16, 0.84, "triangle", 0.05, 780);
+      break;
+    case "crow":
+      [0, 0.34, 0.7].forEach((t) => { tone(760, t, 0.14, "square", 0.08, 520); noise(t, 0.12, 1600, "bandpass", 0.07); });
+      break;
+    case "duck":
+      [0, 0.22, 0.44].forEach((t) => tone(360, t, 0.18, "sawtooth", 0.11, 250));
+      break;
+    case "cicada":
+      [0, 0.12, 0.24, 0.36, 0.48, 0.6, 0.72].forEach((t) => tone(3900, t, 0.1, "sawtooth", 0.05, 4200));
+      break;
+    case "monkey":
+      [0, 0.18, 0.36, 0.72].forEach((t, i) => tone(i % 2 ? 900 : 620, t, 0.16, "triangle", 0.1, i % 2 ? 520 : 980));
+      break;
+    case "pig":
+      [0, 0.28, 0.56].forEach((t) => { tone(180, t, 0.18, "sawtooth", 0.1, 130); noise(t, 0.16, 500, "lowpass", 0.07); });
+      break;
+    case "snake":
+      noise(0, 0.85, 5200, "highpass", 0.06); noise(0.28, 0.45, 6800, "highpass", 0.04);
+      break;
+    case "goat":
+      [0, 0.38].forEach((t) => tone(420, t, 0.34, "sawtooth", 0.11, 580));
+      break;
+    default:
+      tone(440, 0, 0.45, "sine", 0.08);
   }
 }
+
+function pickOptions(answer) {
+  const options = [answer];
+  const pool = biologicalSounds.filter((item) => item.id !== answer.id).sort(() => Math.random() - 0.5);
+  options.push(...pool.slice(0, 3));
+  return options.sort(() => Math.random() - 0.5);
+}
+
+function startBioChallenge() {
+  bioAnswer = biologicalSounds[Math.floor(Math.random() * biologicalSounds.length)];
+  bioRound += 1;
+  document.querySelector("#bioRound").textContent = String(bioRound);
+  document.querySelector("#bioGroup").textContent = bioAnswer.group;
+  document.querySelector("#bioChoices").innerHTML = pickOptions(bioAnswer).map((item) =>
+    `<button data-bio="${item.id}">${item.name}</button>`
+  ).join("");
+  document.querySelector("#bioFeedback").textContent = `第 ${bioRound} 題：仔細聽，猜猜是哪一種生物。`;
+  playBiologicalSound(bioAnswer.id);
+}
+
+document.querySelector("#newBioChallenge").addEventListener("click", startBioChallenge);
+document.querySelector("#replayBioSound").addEventListener("click", () => {
+  if (!bioAnswer) {
+    document.querySelector("#bioFeedback").textContent = "請先按「隨機出題」。";
+    return;
+  }
+  playBiologicalSound(bioAnswer.id);
+});
+document.querySelector("#bioChoices").addEventListener("click", (event) => {
+  const button = event.target.closest("button");
+  if (!button || !bioAnswer) return;
+  const correct = button.dataset.bio === bioAnswer.id;
+  if (correct) {
+    bioScore += 1;
+    document.querySelector("#bioScore").textContent = String(bioScore);
+  }
+  document.querySelector("#bioFeedback").textContent = correct
+    ? `答對了！這是「${bioAnswer.name}」的聲音線索。`
+    : `還差一點，答案是「${bioAnswer.name}」。按「隨機出題」再挑戰。`;
+  [...document.querySelectorAll("#bioChoices button")].forEach((choice) => {
+    choice.disabled = true;
+    if (choice.dataset.bio === bioAnswer.id) choice.classList.add("primary-action");
+  });
+});
 
 function miniSvg(type) {
   const common = 'viewBox="0 0 320 180" role="img"';

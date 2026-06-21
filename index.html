@@ -172,7 +172,7 @@
       <section id="games" class="panel" tabindex="0">
         <div class="game-layout">
           <article class="control-panel">
-            <h2>聲音偵探</h2>
+            <h2>頻率偵探</h2>
             <p>按下出題後，聽一小段聲音，再猜它屬於哪個頻率範圍。</p>
             <button id="newChallenge" class="primary-action">出題</button>
             <div class="choice-grid" id="frequencyChoices">
@@ -184,15 +184,19 @@
             <p id="gameFeedback" class="feedback">準備好了就開始。</p>
           </article>
           <article class="control-panel">
-            <h2>靜音任務</h2>
-            <p>開啟麥克風後，試著讓環境音低於目標分貝並維持 5 秒。</p>
-            <div class="inline-control">
-              <label for="quietTarget">目標 dB</label>
-              <input id="quietTarget" type="number" min="20" max="90" value="45" />
+            <h2>生物聲音猜猜看</h2>
+            <p>系統會隨機播放一種生物的聲音。聽完後，從選項中猜出是哪一種生物。</p>
+            <div class="button-row">
+              <button id="newBioChallenge" class="primary-action">隨機出題</button>
+              <button id="replayBioSound">重播聲音</button>
             </div>
-            <button id="startQuietGame">開始任務</button>
-            <div class="quiet-ring" id="quietRing"><span id="quietTimer">0.0s</span></div>
-            <p id="quietFeedback" class="feedback">需要先開啟麥克風。</p>
+            <div class="choice-grid" id="bioChoices"></div>
+            <div class="metric-grid">
+              <div><span>題數</span><strong id="bioRound">0</strong></div>
+              <div><span>答對</span><strong id="bioScore">0</strong></div>
+              <div><span>類型</span><strong id="bioGroup">等待中</strong></div>
+            </div>
+            <p id="bioFeedback" class="feedback">按「隨機出題」開始聽聲辨生物。</p>
           </article>
         </div>
       </section>
