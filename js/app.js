@@ -17,6 +17,7 @@ let micAnalyser;
 let mediaSource;
 let mediaAnalyser;
 let mediaConnected = false;
+let mediaMode = "idle";
 let challengeAnswer = null;
 let quietStart = null;
 let quietGameActive = false;
@@ -364,29 +365,99 @@ function animateMic() {
 }
 
 const mediaPlayer = document.querySelector("#mediaPlayer");
+const mediaStatus = document.querySelector("#mediaStatus");
+const youtubeEmbed = document.querySelector("#youtubeEmbed");
+
+function getYouTubeId(url) {
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname.includes("youtu.be")) {
+      return parsed.pathname.split("/").filter(Boolean)[0] || "";
+    }
+    if (parsed.hostname.includes("youtube.com")) {
+      if (parsed.pathname.startsWith("/shorts/") || parsed.pathname.startsWith("/embed/")) {
+        return parsed.pathname.split("/").filter(Boolean)[1] || "";
+      }
+      return parsed.searchParams.get("v") || "";
+    }
+  } catch {
+    return "";
+  }
+  return "";
+}
+
+function resetMediaAnalysis() {
+  mediaMode = "idle";
+  document.querySelector("#beatEnergy").textContent = "--";
+  document.querySelector("#brightnessValue").textContent = "--";
+}
+
 document.querySelector("#mediaFile").addEventListener("change", (event) => {
   const file = event.target.files[0];
-  if (file) mediaPlayer.src = URL.createObjectURL(file);
+  if (file) {
+    resetMediaAnalysis();
+    youtubeEmbed.hidden = true;
+    youtubeEmbed.innerHTML = "";
+    mediaPlayer.hidden = false;
+    mediaMode = "direct";
+    mediaPlayer.src = URL.createObjectURL(file);
+    mediaStatus.textContent = "已載入本機媒體檔，按播放後會產生動態音頻圖。";
+  }
 });
 document.querySelector("#loadUrl").addEventListener("click", () => {
   const url = document.querySelector("#mediaUrl").value.trim();
-  if (url) mediaPlayer.src = url;
+  if (!url) return;
+  resetMediaAnalysis();
+  const youtubeId = getYouTubeId(url);
+  if (youtubeId) {
+    mediaPlayer.pause();
+    mediaPlayer.removeAttribute("src");
+    mediaPlayer.load();
+    mediaPlayer.hidden = true;
+    mediaMode = "youtube";
+    youtubeEmbed.hidden = false;
+    youtubeEmbed.innerHTML = `<iframe title="YouTube 播放器" src="https://www.youtube-nocookie.com/embed/${youtubeId}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>`;
+    mediaStatus.textContent = "已載入 YouTube 嵌入播放器。YouTube 可播放，但因跨站安全限制，不能產生音頻圖；要分析請改用本機檔案或直接媒體檔網址。";
+    drawIdle(canvases.media, ctxs.media, "YouTube 可播放，但無法分析聲音");
+    return;
+  }
+  youtubeEmbed.hidden = true;
+  youtubeEmbed.innerHTML = "";
+  mediaPlayer.hidden = false;
+  mediaMode = "direct";
+  mediaPlayer.src = url;
+  mediaStatus.textContent = "已載入直接媒體網址，按播放後會產生動態音頻圖。若仍無法播放，來源網站可能封鎖跨站串流。";
 });
 document.querySelector("#playMedia").addEventListener("click", async () => {
+  if (mediaPlayer.hidden || !mediaPlayer.currentSrc) {
+    mediaStatus.textContent = "目前沒有可分析的直接媒體檔。YouTube 連結請在嵌入播放器中播放；若要音頻圖，請選本機音訊/影片或直接媒體檔網址。";
+    return;
+  }
   const context = await ensureAudio();
-  if (!mediaConnected) {
+  if (!mediaSource) {
     mediaSource = context.createMediaElementSource(mediaPlayer);
+  }
+  if (!mediaConnected) {
     mediaAnalyser = context.createAnalyser();
     mediaAnalyser.fftSize = 2048;
     mediaSource.connect(mediaAnalyser).connect(context.destination);
     mediaConnected = true;
   }
-  await mediaPlayer.play();
+  try {
+    await mediaPlayer.play();
+    mediaStatus.textContent = "正在分析媒體聲音並產生動態音頻圖。";
+  } catch (error) {
+    mediaStatus.textContent = `播放失敗：${error.message}。請改用本機檔案或可直接串流的媒體檔。`;
+  }
 });
-document.querySelector("#pauseMedia").addEventListener("click", () => mediaPlayer.pause());
+document.querySelector("#pauseMedia").addEventListener("click", () => {
+  if (!mediaPlayer.hidden) mediaPlayer.pause();
+});
 
 function animateMedia() {
-  if (mediaAnalyser) {
+  if (mediaMode === "youtube") {
+    drawIdle(canvases.media, ctxs.media, "YouTube 可播放，但無法分析聲音");
+  } else if (mediaMode === "direct" && mediaAnalyser) {
     const result = drawSpectrum(canvases.media, ctxs.media, mediaAnalyser, "media");
     document.querySelector("#beatEnergy").textContent = result.lowEnergy > 22000 ? "強" : result.lowEnergy > 9000 ? "中" : "弱";
     document.querySelector("#brightnessValue").textContent = result.highEnergy > 28000 ? "明亮" : result.highEnergy > 13000 ? "普通" : "溫和";

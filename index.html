@@ -145,14 +145,15 @@
             <h2>音樂、聲音與影音連結</h2>
             <label for="mediaFile">選擇本機音訊或影片</label>
             <input id="mediaFile" type="file" accept="audio/*,video/*" />
-            <label for="mediaUrl">或輸入可直接播放的媒體網址</label>
+            <label for="mediaUrl">或輸入媒體網址</label>
             <input id="mediaUrl" type="url" placeholder="https://example.com/audio.mp3" />
             <div class="button-row">
               <button id="loadUrl">載入連結</button>
               <button id="playMedia" class="primary-action">播放</button>
               <button id="pauseMedia">暫停</button>
             </div>
-            <p class="hint">部分影音平台會限制跨站播放；若連結無法分析，請改用可直接下載或串流的音訊/影片檔。</p>
+            <p id="mediaStatus" class="hint">可分析 mp3、wav、ogg、mp4、webm 等直接媒體檔。YouTube 連結可嵌入播放，但瀏覽器不允許直接分析它的聲音。</p>
+            <div id="youtubeEmbed" class="youtube-embed" hidden></div>
             <video id="mediaPlayer" controls playsinline crossorigin="anonymous"></video>
           </article>
           <article class="visual-panel">
