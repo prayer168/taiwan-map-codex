@@ -1139,6 +1139,43 @@ function drawConceptDemo(state) {
   }
 }
 
+const resourceSlugMap = {
+  "phet.colorado.edu": "phet",
+  "pedia.cloud.edu.tw": "pedia",
+  "www.cwa.gov.tw": "cwa",
+  "www.cdc.gov": "cdc",
+  "developer.mozilla.org": "mdn",
+  "www.sciencelearn.org.nz": "sciencelearn"
+};
+
+function resourceSlug(url) {
+  try {
+    const host = new URL(url).hostname;
+    return resourceSlugMap[host] || host.replace(/^www\./, "").split(".")[0];
+  } catch {
+    return "";
+  }
+}
+
+async function loadResourceLogos() {
+  try {
+    const response = await fetch("./img/resources/manifest.json");
+    if (!response.ok) throw new Error(String(response.status));
+    return await response.json();
+  } catch {
+    return {};
+  }
+}
+
+function resourceVisual(item, logos) {
+  const slug = resourceSlug(item.url);
+  const entry = logos[slug];
+  if (entry?.logo) {
+    return `<div class="resource-logo"><img src="./img/resources/${entry.logo}" alt="${item.title} 標誌" loading="lazy" /></div>`;
+  }
+  return miniSvg("spectrum");
+}
+
 async function loadContent() {
   try {
     const loadJson = async (path) => {
@@ -1158,9 +1195,10 @@ async function loadContent() {
     document.querySelector("#applicationGrid").innerHTML = content.applications.map((item) => `
       <article class="concept-card">${miniSvg(item.visual)}<h3>${item.title}</h3><p>${item.text}</p></article>
     `).join("");
+    const resourceLogos = await loadResourceLogos();
     document.querySelector("#resourceGrid").innerHTML = resources.map((item) => `
       <article class="resource-card">
-        ${miniSvg("spectrum")}
+        ${resourceVisual(item, resourceLogos)}
         <h3><a href="${item.url}" target="_blank" rel="noreferrer">${item.title}</a></h3>
         <p>${item.description}</p>
         <p class="resource-meta">${item.type}｜${item.grade}｜檢查日期 ${item.checkedAt}</p>

@@ -336,6 +336,29 @@ fix: improve biological sound volume
 feat: turn principle cards into interactive animations
 ```
 
+## 闖關題目與自主學習 logo
+
+使用者要求：闖關題增加到 10 題；自主學習卡片改用各網站 logo（去背、與背景融合）。
+
+闖關題：
+
+- `public/data/quiz.json` 與 `data/quiz.json` 由 5 題增為 10 題（素養導向，含聲音傳遞、單位、聽力保護等）。
+
+自主學習 logo：
+
+- 各網站 logo 去背後存於 `public/img/resources/`，對應記於同資料夾 `manifest.json`。
+- 來源：PhET（官方透明 PNG）、教育百科（白色字標）、CDC（Wikimedia「CDC logo 2024.png」透明版）、MDN（apple-touch 黑底白字，用亮度去背成白色字標）、Science Learning Hub（apple-touch 去背）。
+- 去背方式：角落洪水填充移除純色底；MDN 這類白字黑底改用亮度鍵（黑→透明、白→保留）。
+- `js/app.js` 以 `resourceSlug` / `loadResourceLogos` / `resourceVisual` 渲染：有 logo 就顯示去背圖，沒有就退回原本 `miniSvg("spectrum")`。
+- 中央氣象署（cwa.gov.tw）此環境 DNS 不穩且無乾淨字標，目前退回頻譜圖形。
+- CSS `.resource-logo` 用透明容器 + `object-fit: contain` + drop-shadow，讓 logo 融入深色卡片。
+
+相關提交：
+
+```bash
+feat: 10-question quiz and de-backgrounded site logos
+```
+
 ## 目前重要檔案
 
 - `index.html`：網站頁籤與主要介面
