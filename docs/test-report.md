@@ -16,6 +16,7 @@
 - `data/quiz.json` 可由本機伺服器成功載入。
 - 已加入 GitHub Pages Actions workflow，部署目標為 `https://prayer168.github.io/Sound_Lab/`。
 - 2026-06-21 修正麥克風分析流程：等待 `AudioContext.resume()` 完成、調整分析器分貝範圍，並在麥克風頻譜加入即時波形線，避免說話時圖譜看起來空白。
+- 2026-06-21 加入麥克風靈敏度放大、自動波形縮放與「訊號振幅」診斷，用來區分圖表問題與瀏覽器實際收到靜音輸入。
 
 ## 待瀏覽器實測
 

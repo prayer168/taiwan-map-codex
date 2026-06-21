@@ -11,6 +11,7 @@ let toneGain;
 let sweepTimer;
 let micStream;
 let micSource;
+let micGain;
 let micAnalyser;
 let mediaSource;
 let mediaAnalyser;
@@ -186,6 +187,24 @@ function rmsToDb(data) {
   return Math.max(0, Math.min(100, 20 * Math.log10(rms || 0.00001) + 100));
 }
 
+function getWaveStats(data) {
+  let min = 255;
+  let max = 0;
+  let sum = 0;
+  for (const value of data) {
+    if (value < min) min = value;
+    if (value > max) max = value;
+    const centered = value - 128;
+    sum += centered * centered;
+  }
+  return {
+    min,
+    max,
+    peakToPeak: max - min,
+    rms: Math.sqrt(sum / data.length) / 128
+  };
+}
+
 function drawSpectrum(canvas, ctx, analyser, mode = "bars") {
   const data = new Uint8Array(analyser.frequencyBinCount);
   const timeData = new Uint8Array(analyser.fftSize);
@@ -209,23 +228,30 @@ function drawSpectrum(canvas, ctx, analyser, mode = "bars") {
     ctx.fillStyle = `hsl(${hue}, 86%, ${42 + value / 8}%)`;
     ctx.fillRect(index * barWidth, canvas.height - height, Math.max(1, barWidth - 1), height);
   });
+  const waveStats = getWaveStats(timeData);
   if (mode === "media" || mode === "mic") {
     ctx.globalCompositeOperation = "lighter";
     ctx.strokeStyle = mode === "mic" ? "rgba(255, 191, 63, 0.86)" : "rgba(255, 191, 63, 0.75)";
     ctx.lineWidth = mode === "mic" ? 4 : 3;
     ctx.beginPath();
+    const autoScale = mode === "mic" ? Math.max(1, Math.min(28, 72 / Math.max(1, waveStats.peakToPeak))) : 1;
     for (let i = 0; i < timeData.length; i += 4) {
       const x = (i / timeData.length) * canvas.width;
-      const y = canvas.height * 0.46 + ((timeData[i] - 128) / 128) * (mode === "mic" ? 130 : 90);
+      const y = canvas.height * 0.46 + ((timeData[i] - 128) / 128) * (mode === "mic" ? 130 * autoScale : 90);
       if (i === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     }
     ctx.stroke();
     ctx.globalCompositeOperation = "source-over";
+    if (mode === "mic") {
+      ctx.fillStyle = waveStats.peakToPeak <= 2 ? "#ffbf3f" : "#a8b8cc";
+      ctx.font = "20px Microsoft JhengHei, sans-serif";
+      ctx.fillText(`訊號振幅 ${waveStats.peakToPeak}`, 24, canvas.height - 24);
+    }
   }
   const db = rmsToDb(timeData);
   const peakFrequency = Math.round((maxIndex * audioContext.sampleRate) / analyser.fftSize);
-  return { db, peakFrequency, lowEnergy, highEnergy, max };
+  return { db, peakFrequency, lowEnergy, highEnergy, max, waveStats };
 }
 
 async function startMic() {
@@ -239,13 +265,17 @@ async function startMic() {
     }
   });
   micSource = context.createMediaStreamSource(micStream);
+  micGain = context.createGain();
+  micGain.gain.value = Number(document.querySelector("#micSensitivity").value);
   micAnalyser = context.createAnalyser();
   micAnalyser.fftSize = 2048;
   micAnalyser.minDecibels = -100;
   micAnalyser.maxDecibels = -12;
   micAnalyser.smoothingTimeConstant = 0.72;
-  micSource.connect(micAnalyser);
-  document.querySelector("#micStatus").textContent = `麥克風已啟用，AudioContext：${context.state}。請試著拍手、說話或播放一段音樂。`;
+  micSource.connect(micGain).connect(micAnalyser);
+  const track = micStream.getAudioTracks()[0];
+  const label = track?.label ? `裝置：${track.label}。` : "";
+  document.querySelector("#micStatus").textContent = `麥克風已啟用，AudioContext：${context.state}。${label}請調整靈敏度並說話或拍手。`;
 }
 
 function stopMic() {
@@ -254,6 +284,7 @@ function stopMic() {
   }
   micStream = null;
   micSource = null;
+  micGain = null;
   micAnalyser = null;
   document.querySelector("#micStatus").textContent = "麥克風已停止。";
 }
@@ -266,14 +297,22 @@ document.querySelector("#startMic").addEventListener("click", async () => {
   }
 });
 document.querySelector("#stopMic").addEventListener("click", stopMic);
+document.querySelector("#micSensitivity").addEventListener("input", (event) => {
+  if (micGain && audioContext) {
+    micGain.gain.setTargetAtTime(Number(event.target.value), audioContext.currentTime, 0.03);
+  }
+});
 
 function animateMic() {
   if (micAnalyser && !document.querySelector("#freezeMic").checked) {
     const result = drawSpectrum(canvases.mic, ctxs.mic, micAnalyser, "mic");
     document.querySelector("#dbValue").textContent = `${result.db.toFixed(1)} dB`;
-    document.querySelector("#peakFrequency").textContent = result.max > 2 ? `${result.peakFrequency} Hz` : "-- Hz";
+    document.querySelector("#peakFrequency").textContent = result.max > 2 && result.waveStats.peakToPeak > 2 ? `${result.peakFrequency} Hz` : "-- Hz";
     document.querySelector("#dbFill").style.height = `${result.db}%`;
-    document.querySelector("#soundState").textContent = result.max <= 2 ? "等待聲音" : result.db < 35 ? "安靜" : result.db < 68 ? "一般聲音" : "偏大聲";
+    document.querySelector("#soundState").textContent = result.waveStats.peakToPeak <= 2 ? "未收到訊號" : result.db < 35 ? "安靜" : result.db < 68 ? "一般聲音" : "偏大聲";
+    if (result.waveStats.peakToPeak <= 2) {
+      document.querySelector("#micStatus").textContent = "麥克風已開啟，但目前收到的輸入是靜音。請確認 Chrome 右上角麥克風來源、Windows 輸入音量，或把靈敏度拉高後拍手測試。";
+    }
     updateQuietGame(result.db);
   } else if (!micAnalyser) {
     drawIdle(canvases.mic, ctxs.mic, "等待麥克風");
