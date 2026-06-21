@@ -48,5 +48,14 @@
       167,
       155
     ]
+  },
+  "cwa": {
+    "logo": "cwa.png",
+    "src": "https://www.cwa.gov.tw/V8/assets/img/win10/cwbPinlogo310.png",
+    "final": [
+      261,
+      155
+    ],
+    "note": "CWA emblem keyed to white wave silhouette"
   }
 }

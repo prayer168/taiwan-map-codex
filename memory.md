@@ -350,7 +350,7 @@ feat: turn principle cards into interactive animations
 - 來源：PhET（官方透明 PNG）、教育百科（白色字標）、CDC（Wikimedia「CDC logo 2024.png」透明版）、MDN（apple-touch 黑底白字，用亮度去背成白色字標）、Science Learning Hub（apple-touch 去背）。
 - 去背方式：角落洪水填充移除純色底；MDN 這類白字黑底改用亮度鍵（黑→透明、白→保留）。
 - `js/app.js` 以 `resourceSlug` / `loadResourceLogos` / `resourceVisual` 渲染：有 logo 就顯示去背圖，沒有就退回原本 `miniSvg("spectrum")`。
-- 中央氣象署（cwa.gov.tw）此環境 DNS 不穩且無乾淨字標，目前退回頻譜圖形。
+- 中央氣象署（cwa.gov.tw）：用其 Win10 磁貼標誌 `cwbPinlogo310.png`（藍底白橢圓內含海浪），程式去背只保留白色海浪剪影。該站憑證有問題（Missing Subject Key Identifier）會擋住 Python 抓取，需用 `ssl._create_unverified_context()` 並帶 `Referer` 才能取得資產。
 - CSS `.resource-logo` 用透明容器 + `object-fit: contain` + drop-shadow，讓 logo 融入深色卡片。
 
 相關提交：
