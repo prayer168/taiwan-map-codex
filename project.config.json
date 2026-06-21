@@ -1,0 +1,18 @@
+{
+  "title": "音頻圖聲音實驗室",
+  "projectName": "audio-spectrum-lab",
+  "repositoryName": "audio-spectrum-lab",
+  "language": "zh-TW",
+  "level": "國小高年級到國中",
+  "subject": "自然科學 / 科技",
+  "duration": "40分鐘",
+  "version": "1.0.0",
+  "features": [
+    "0-30000 Hz 頻率產生器",
+    "麥克風音頻圖與分貝監測",
+    "媒體檔案與連結播放視覺化",
+    "聲音辨識遊戲",
+    "互動題庫與學習進度"
+  ]
+}
+

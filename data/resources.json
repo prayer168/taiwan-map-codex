@@ -1,0 +1,51 @@
+[
+  {
+    "title": "PhET 聲音模擬",
+    "url": "https://phet.colorado.edu/zh_TW/simulations/sound",
+    "type": "互動模擬",
+    "grade": "國小高年級到國中",
+    "description": "用模擬觀察聲波、頻率與振幅。",
+    "checkedAt": "2026-06-21"
+  },
+  {
+    "title": "教育百科：聲音",
+    "url": "https://pedia.cloud.edu.tw/",
+    "type": "知識查詢",
+    "grade": "國小到國中",
+    "description": "查詢聲音、頻率、分貝等名詞解釋。",
+    "checkedAt": "2026-06-21"
+  },
+  {
+    "title": "中央氣象署地震聲波延伸閱讀",
+    "url": "https://www.cwa.gov.tw/",
+    "type": "生活科學",
+    "grade": "國中",
+    "description": "認識波動在不同情境中的應用，可延伸比較機械波概念。",
+    "checkedAt": "2026-06-21"
+  },
+  {
+    "title": "美國 CDC 噪音與聽力",
+    "url": "https://www.cdc.gov/niosh/noise/",
+    "type": "健康教育",
+    "grade": "國中",
+    "description": "了解高音量環境與聽力保護。",
+    "checkedAt": "2026-06-21"
+  },
+  {
+    "title": "Mozilla Web Audio API",
+    "url": "https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API",
+    "type": "技術文件",
+    "grade": "教師與進階學生",
+    "description": "了解瀏覽器如何產生與分析聲音。",
+    "checkedAt": "2026-06-21"
+  },
+  {
+    "title": "Science Learning Hub: Sound",
+    "url": "https://www.sciencelearn.org.nz/resources/47-sound",
+    "type": "科學閱讀",
+    "grade": "國中",
+    "description": "以生活例子認識聲音與波動。",
+    "checkedAt": "2026-06-21"
+  }
+]
+

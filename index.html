@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>音頻圖聲音實驗室</title>
+    <link rel="stylesheet" href="./css/style.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">Web Audio Lab</p>
+        <h1>音頻圖聲音實驗室</h1>
+        <p class="subtitle">調整頻率、觀察分貝、分析聲音，讓看不見的聲波變成可以操作的圖像。</p>
+      </div>
+      <div class="progress-box" aria-label="學習進度">
+        <span>完成度</span>
+        <strong id="progressText">0%</strong>
+        <div class="progress-track"><div id="progressBar"></div></div>
+      </div>
+    </header>
+
+    <nav class="tabs" aria-label="教材頁籤">
+      <button class="tab active" data-tab="mission">學習任務</button>
+      <button class="tab" data-tab="tone">頻率產生器</button>
+      <button class="tab" data-tab="mic">麥克風圖譜</button>
+      <button class="tab" data-tab="media">媒體音頻圖</button>
+      <button class="tab" data-tab="games">聲音遊戲</button>
+      <button class="tab" data-tab="learn">原理與應用</button>
+      <button class="tab" data-tab="quiz">闖關挑戰</button>
+      <button class="tab" data-tab="resources">自主學習</button>
+    </nav>
+
+    <main>
+      <section id="mission" class="panel active" tabindex="0">
+        <div class="panel-grid">
+          <article class="intro-block">
+            <h2>今天的任務</h2>
+            <p>你會用三種方式觀察聲音：自己產生純音、用麥克風接收環境聲、播放一段媒體並分析它的頻譜。</p>
+            <ul class="check-list">
+              <li>比較低頻與高頻在圖上的位置。</li>
+              <li>觀察聲音變大時，分貝與波形如何改變。</li>
+              <li>挑戰用耳朵猜出頻率範圍。</li>
+            </ul>
+            <button class="primary-action" data-go="tone">開始實驗</button>
+          </article>
+          <article class="scope-visual" aria-label="聲波示意圖">
+            <svg viewBox="0 0 640 320" role="img" aria-label="低頻與高頻聲波比較">
+              <defs>
+                <linearGradient id="waveGrad" x1="0" x2="1">
+                  <stop offset="0%" stop-color="#18b6a2" />
+                  <stop offset="55%" stop-color="#4e8cff" />
+                  <stop offset="100%" stop-color="#ffbf3f" />
+                </linearGradient>
+              </defs>
+              <rect x="28" y="24" width="584" height="244" rx="18" fill="#101827" />
+              <g stroke="#26364f" stroke-width="1">
+                <path d="M80 40V252M160 40V252M240 40V252M320 40V252M400 40V252M480 40V252M560 40V252" />
+                <path d="M52 82H588M52 134H588M52 186H588M52 238H588" />
+              </g>
+              <path class="low-wave" d="M52 165 C112 92 172 92 232 165 S352 238 412 165 S532 92 588 165" fill="none" stroke="#18b6a2" stroke-width="8" stroke-linecap="round" />
+              <path class="high-wave" d="M52 112 C68 72 84 72 100 112 S132 152 148 112 S180 72 196 112 S228 152 244 112 S276 72 292 112 S324 152 340 112 S372 72 388 112 S420 152 436 112 S468 72 484 112 S516 152 532 112 S564 72 588 112" fill="none" stroke="#ffbf3f" stroke-width="5" stroke-linecap="round" />
+              <text x="70" y="292" fill="#dce7f7">低頻：波距較長</text>
+              <text x="400" y="292" fill="#dce7f7">高頻：波距較短</text>
+            </svg>
+          </article>
+        </div>
+      </section>
+
+      <section id="tone" class="panel" tabindex="0">
+        <div class="tool-layout">
+          <article class="control-panel">
+            <h2>系統音頻率產生器</h2>
+            <label for="frequencyInput">頻率 Hz</label>
+            <div class="inline-control">
+              <input id="frequencyInput" type="number" min="0" max="30000" value="440" />
+              <button id="setFrequency">套用</button>
+            </div>
+            <input id="frequencyRange" type="range" min="0" max="30000" value="440" step="1" />
+            <div class="preset-row" aria-label="常用頻率">
+              <button data-frequency="220">220</button>
+              <button data-frequency="440">440</button>
+              <button data-frequency="1000">1k</button>
+              <button data-frequency="4000">4k</button>
+              <button data-frequency="12000">12k</button>
+            </div>
+            <label for="volumeRange">音量</label>
+            <input id="volumeRange" type="range" min="0" max="0.35" value="0.08" step="0.01" />
+            <div class="button-row">
+              <button id="playTone" class="primary-action">播放</button>
+              <button id="stopTone">停止</button>
+              <button id="sweepTone">掃頻測試</button>
+            </div>
+            <p id="toneHint" class="hint">建議先用低音量測試。超過 18000 Hz 可能因喇叭或聽力範圍而聽不到。</p>
+          </article>
+          <article class="visual-panel">
+            <canvas id="toneCanvas" width="900" height="420" aria-label="系統音波形圖"></canvas>
+            <div class="metric-grid">
+              <div><span>目前頻率</span><strong id="currentFrequency">440 Hz</strong></div>
+              <div><span>波長概念</span><strong id="waveLabel">中等</strong></div>
+              <div><span>音高感受</span><strong id="pitchLabel">標準音 A4</strong></div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="mic" class="panel" tabindex="0">
+        <div class="tool-layout">
+          <article class="control-panel">
+            <h2>麥克風即時音頻圖</h2>
+            <p>允許瀏覽器使用麥克風後，可以看到環境聲的頻率分布與估計分貝。</p>
+            <div class="button-row">
+              <button id="startMic" class="primary-action">開啟麥克風</button>
+              <button id="stopMic">停止</button>
+            </div>
+            <label class="toggle-line"><input id="freezeMic" type="checkbox" /> 凍結畫面</label>
+            <p id="micStatus" class="hint">尚未啟用麥克風。</p>
+          </article>
+          <article class="visual-panel">
+            <canvas id="micCanvas" width="900" height="420" aria-label="麥克風頻譜圖"></canvas>
+            <div class="meter-row">
+              <div class="db-meter"><div id="dbFill"></div></div>
+              <div class="metric-grid">
+                <div><span>估計音量</span><strong id="dbValue">-- dB</strong></div>
+                <div><span>主峰頻率</span><strong id="peakFrequency">-- Hz</strong></div>
+                <div><span>聲音狀態</span><strong id="soundState">等待中</strong></div>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="media" class="panel" tabindex="0">
+        <div class="tool-layout">
+          <article class="control-panel">
+            <h2>音樂、聲音與影音連結</h2>
+            <label for="mediaFile">選擇本機音訊或影片</label>
+            <input id="mediaFile" type="file" accept="audio/*,video/*" />
+            <label for="mediaUrl">或輸入可直接播放的媒體網址</label>
+            <input id="mediaUrl" type="url" placeholder="https://example.com/audio.mp3" />
+            <div class="button-row">
+              <button id="loadUrl">載入連結</button>
+              <button id="playMedia" class="primary-action">播放</button>
+              <button id="pauseMedia">暫停</button>
+            </div>
+            <p class="hint">部分影音平台會限制跨站播放；若連結無法分析，請改用可直接下載或串流的音訊/影片檔。</p>
+            <video id="mediaPlayer" controls playsinline crossorigin="anonymous"></video>
+          </article>
+          <article class="visual-panel">
+            <canvas id="mediaCanvas" width="900" height="420" aria-label="媒體音頻圖"></canvas>
+            <div class="metric-grid">
+              <div><span>節奏能量</span><strong id="beatEnergy">--</strong></div>
+              <div><span>亮度</span><strong id="brightnessValue">--</strong></div>
+              <div><span>視覺模式</span><strong>科技頻譜</strong></div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="games" class="panel" tabindex="0">
+        <div class="game-layout">
+          <article class="control-panel">
+            <h2>聲音偵探</h2>
+            <p>按下出題後，聽一小段聲音，再猜它屬於哪個頻率範圍。</p>
+            <button id="newChallenge" class="primary-action">出題</button>
+            <div class="choice-grid" id="frequencyChoices">
+              <button data-choice="low">低頻 80-300 Hz</button>
+              <button data-choice="mid">中頻 300-2000 Hz</button>
+              <button data-choice="high">高頻 2000-9000 Hz</button>
+              <button data-choice="ultra">超高頻 9000 Hz 以上</button>
+            </div>
+            <p id="gameFeedback" class="feedback">準備好了就開始。</p>
+          </article>
+          <article class="control-panel">
+            <h2>靜音任務</h2>
+            <p>開啟麥克風後，試著讓環境音低於目標分貝並維持 5 秒。</p>
+            <div class="inline-control">
+              <label for="quietTarget">目標 dB</label>
+              <input id="quietTarget" type="number" min="20" max="90" value="45" />
+            </div>
+            <button id="startQuietGame">開始任務</button>
+            <div class="quiet-ring" id="quietRing"><span id="quietTimer">0.0s</span></div>
+            <p id="quietFeedback" class="feedback">需要先開啟麥克風。</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="learn" class="panel" tabindex="0">
+        <div class="content-grid" id="conceptGrid"></div>
+        <h2 class="section-title">生活應用</h2>
+        <div class="content-grid" id="applicationGrid"></div>
+      </section>
+
+      <section id="quiz" class="panel" tabindex="0">
+        <article class="quiz-shell">
+          <div class="quiz-head">
+            <h2>闖關大挑戰</h2>
+            <strong id="quizScore">0 / 0</strong>
+          </div>
+          <div id="quizBox"></div>
+          <div class="button-row">
+            <button id="checkQuiz" class="primary-action">檢查答案</button>
+            <button id="resetQuiz">重新挑戰</button>
+          </div>
+        </article>
+      </section>
+
+      <section id="resources" class="panel" tabindex="0">
+        <div class="content-grid" id="resourceGrid"></div>
+      </section>
+    </main>
+
+    <footer class="footer-nav">
+      <button id="prevTab">上一頁</button>
+      <span id="tabPosition">1 / 8</span>
+      <button id="nextTab">下一頁</button>
+    </footer>
+
+    <script src="./js/app.js" type="module"></script>
+  </body>
+</html>
