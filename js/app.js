@@ -1,1259 +1,526 @@
-const tabs = [...document.querySelectorAll(".tab")];
-const panels = [...document.querySelectorAll(".panel")];
-const progressText = document.querySelector("#progressText");
-const progressBar = document.querySelector("#progressBar");
-const tabPosition = document.querySelector("#tabPosition");
-const visited = new Set(JSON.parse(localStorage.getItem("audioLabVisited") || "[\"mission\"]"));
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
-let audioContext;
-let oscillator;
-let toneGain;
-let sweepTimer;
-let micStream;
-let micSource;
-let micGain;
-let micMonitorGain;
-let micAnalyser;
-let mediaElementSource;
-let mediaActiveSource;
-let mediaAnalyser;
-let mediaConnected = false;
-let mediaMode = "idle";
-let capturedAudioStream;
-let loadedMediaUrl = "";
-let challengeAnswer = null;
-let bioAnswer = null;
-let bioScore = 0;
-let bioRound = 0;
+const canvas = document.querySelector("#taiwanScene");
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, preserveDrawingBuffer: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
 
-const canvases = {
-  tone: document.querySelector("#toneCanvas"),
-  mic: document.querySelector("#micCanvas"),
-  media: document.querySelector("#mediaCanvas")
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x07111d);
+scene.fog = new THREE.FogExp2(0x07111d, 0.008);
+
+const camera = new THREE.PerspectiveCamera(58, 1, 0.1, 900);
+camera.position.set(0, 52, 118);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.07;
+controls.maxPolarAngle = Math.PI * 0.49;
+controls.minDistance = 18;
+controls.maxDistance = 210;
+controls.target.set(0, 0, 0);
+
+const root = new THREE.Group();
+scene.add(root);
+
+const ui = {
+  loading: document.querySelector("#loadingState"),
+  cityList: document.querySelector("#cityList"),
+  regionFilter: document.querySelector("#regionFilter"),
+  focusName: document.querySelector("#focusName"),
+  altitudeValue: document.querySelector("#altitudeValue"),
+  speedValue: document.querySelector("#speedValue"),
+  speedRange: document.querySelector("#speedRange"),
+  tourButton: document.querySelector("#tourButton"),
+  homeButton: document.querySelector("#homeButton"),
+  nightButton: document.querySelector("#nightButton"),
+  placeCounty: document.querySelector("#placeCounty"),
+  placeTitle: document.querySelector("#placeTitle"),
+  placeText: document.querySelector("#placeText"),
+  detail: document.querySelector(".place-detail")
 };
 
-const ctxs = Object.fromEntries(Object.entries(canvases).map(([key, canvas]) => [key, canvas.getContext("2d")]));
-const micDeviceSelect = document.querySelector("#micDevice");
+const palette = {
+  north: "#5ea4ff",
+  central: "#88dc72",
+  south: "#f6c45a",
+  east: "#41d7c7",
+  islands: "#ff7d9d"
+};
 
-async function ensureAudio() {
-  if (!audioContext) {
-    audioContext = new AudioContext();
-  }
-  if (audioContext.state === "suspended") {
-    await audioContext.resume();
-  }
-  return audioContext;
-}
-
-function switchTab(id) {
-  tabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.tab === id));
-  panels.forEach((panel) => panel.classList.toggle("active", panel.id === id));
-  visited.add(id);
-  localStorage.setItem("audioLabVisited", JSON.stringify([...visited]));
-  updateProgress();
-  document.querySelector(`#${id}`).focus({ preventScroll: true });
-}
-
-function updateProgress() {
-  const activeIndex = tabs.findIndex((tab) => tab.classList.contains("active"));
-  const percent = Math.round((visited.size / tabs.length) * 100);
-  progressText.textContent = `${percent}%`;
-  progressBar.style.width = `${percent}%`;
-  tabPosition.textContent = `${activeIndex + 1} / ${tabs.length}`;
-}
-
-tabs.forEach((tab) => tab.addEventListener("click", () => switchTab(tab.dataset.tab)));
-document.querySelectorAll("[data-go]").forEach((button) => {
-  button.addEventListener("click", () => switchTab(button.dataset.go));
-});
-document.querySelector("#prevTab").addEventListener("click", () => {
-  const index = tabs.findIndex((tab) => tab.classList.contains("active"));
-  switchTab(tabs[Math.max(0, index - 1)].dataset.tab);
-});
-document.querySelector("#nextTab").addEventListener("click", () => {
-  const index = tabs.findIndex((tab) => tab.classList.contains("active"));
-  switchTab(tabs[Math.min(tabs.length - 1, index + 1)].dataset.tab);
-});
-
-function drawGrid(ctx, width, height) {
-  ctx.clearRect(0, 0, width, height);
-  ctx.fillStyle = "#050a12";
-  ctx.fillRect(0, 0, width, height);
-  ctx.strokeStyle = "#162841";
-  ctx.lineWidth = 1;
-  for (let x = 0; x < width; x += 60) {
-    ctx.beginPath();
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, height);
-    ctx.stroke();
-  }
-  for (let y = 0; y < height; y += 42) {
-    ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.lineTo(width, y);
-    ctx.stroke();
-  }
-}
-
-function drawToneWave() {
-  const canvas = canvases.tone;
-  const ctx = ctxs.tone;
-  const frequency = Number(document.querySelector("#frequencyInput").value);
-  const volume = Number(document.querySelector("#volumeRange").value);
-  drawGrid(ctx, canvas.width, canvas.height);
-  ctx.lineWidth = 4;
-  ctx.strokeStyle = frequency > 12000 ? "#ffbf3f" : frequency > 2000 ? "#4e8cff" : "#18b6a2";
-  ctx.beginPath();
-  const cycles = Math.max(0.5, Math.min(28, frequency / 360));
-  const amp = 36 + volume * 520;
-  for (let x = 0; x < canvas.width; x += 2) {
-    const y = canvas.height / 2 + Math.sin((x / canvas.width) * cycles * Math.PI * 2) * amp;
-    if (x === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  }
-  ctx.stroke();
-  ctx.fillStyle = "#e9f2ff";
-  ctx.font = "22px Microsoft JhengHei, sans-serif";
-  ctx.fillText(`${frequency.toLocaleString()} Hz`, 28, 42);
-  requestAnimationFrame(drawToneWave);
-}
-
-function updateToneLabels() {
-  const frequency = Number(document.querySelector("#frequencyInput").value);
-  document.querySelector("#currentFrequency").textContent = `${frequency.toLocaleString()} Hz`;
-  document.querySelector("#waveLabel").textContent = frequency < 300 ? "波距長" : frequency < 2000 ? "中等" : "波距短";
-  document.querySelector("#pitchLabel").textContent =
-    frequency < 80 ? "接近低頻震動" :
-    frequency < 300 ? "低沉" :
-    frequency < 2000 ? "清楚可辨" :
-    frequency < 9000 ? "尖亮" :
-    "極高頻";
-  if (oscillator) oscillator.frequency.setTargetAtTime(Math.max(1, frequency), audioContext.currentTime, 0.01);
-}
-
-function setFrequency(value) {
-  const next = Math.min(30000, Math.max(0, Number(value) || 0));
-  document.querySelector("#frequencyInput").value = next;
-  document.querySelector("#frequencyRange").value = next;
-  updateToneLabels();
-}
-
-document.querySelector("#frequencyRange").addEventListener("input", (event) => setFrequency(event.target.value));
-document.querySelector("#setFrequency").addEventListener("click", () => setFrequency(document.querySelector("#frequencyInput").value));
-document.querySelectorAll("[data-frequency]").forEach((button) => {
-  button.addEventListener("click", () => setFrequency(button.dataset.frequency));
-});
-document.querySelector("#volumeRange").addEventListener("input", (event) => {
-  if (toneGain) toneGain.gain.setTargetAtTime(Number(event.target.value), audioContext.currentTime, 0.02);
-});
-
-function stopTone() {
-  clearInterval(sweepTimer);
-  sweepTimer = null;
-  if (oscillator) {
-    oscillator.stop();
-    oscillator.disconnect();
-    oscillator = null;
-  }
-}
-
-document.querySelector("#playTone").addEventListener("click", () => {
-  stopTone();
-  ensureAudio().then((context) => {
-    oscillator = context.createOscillator();
-    toneGain = context.createGain();
-    oscillator.type = "sine";
-    oscillator.frequency.value = Math.max(1, Number(document.querySelector("#frequencyInput").value));
-    toneGain.gain.value = Number(document.querySelector("#volumeRange").value);
-    oscillator.connect(toneGain).connect(context.destination);
-    oscillator.start();
-  });
-});
-document.querySelector("#stopTone").addEventListener("click", stopTone);
-document.querySelector("#sweepTone").addEventListener("click", () => {
-  document.querySelector("#playTone").click();
-  let value = 120;
-  clearInterval(sweepTimer);
-  sweepTimer = setInterval(() => {
-    value += 120;
-    setFrequency(value);
-    if (value >= 6000) {
-      clearInterval(sweepTimer);
-      sweepTimer = null;
-    }
-  }, 120);
-});
-
-function rmsToDb(data) {
-  let sum = 0;
-  for (const value of data) {
-    const centered = (value - 128) / 128;
-    sum += centered * centered;
-  }
-  const rms = Math.sqrt(sum / data.length);
-  return Math.max(0, Math.min(100, 20 * Math.log10(rms || 0.00001) + 100));
-}
-
-async function loadMicDevices() {
-  if (!navigator.mediaDevices?.enumerateDevices) {
-    document.querySelector("#micStatus").textContent = "這個瀏覽器不支援麥克風裝置列表。";
-    return;
-  }
-  const devices = await navigator.mediaDevices.enumerateDevices();
-  const audioInputs = devices.filter((device) => device.kind === "audioinput");
-  const previous = micDeviceSelect.value;
-  micDeviceSelect.innerHTML = '<option value="">瀏覽器預設麥克風</option>';
-  audioInputs.forEach((device, index) => {
-    const option = document.createElement("option");
-    option.value = device.deviceId;
-    option.textContent = device.label || `麥克風 ${index + 1}`;
-    micDeviceSelect.append(option);
-  });
-  if ([...micDeviceSelect.options].some((option) => option.value === previous)) {
-    micDeviceSelect.value = previous;
-  }
-  document.querySelector("#micStatus").textContent = audioInputs.length
-    ? `偵測到 ${audioInputs.length} 個輸入裝置，請選一個再開啟麥克風。`
-    : "沒有偵測到麥克風輸入裝置。";
-}
-
-function getWaveStats(data) {
-  let min = 255;
-  let max = 0;
-  let sum = 0;
-  for (const value of data) {
-    if (value < min) min = value;
-    if (value > max) max = value;
-    const centered = value - 128;
-    sum += centered * centered;
-  }
-  return {
-    min,
-    max,
-    peakToPeak: max - min,
-    rms: Math.sqrt(sum / data.length) / 128
-  };
-}
-
-function drawSpectrum(canvas, ctx, analyser, mode = "bars") {
-  const data = new Uint8Array(analyser.frequencyBinCount);
-  const timeData = new Uint8Array(analyser.fftSize);
-  analyser.getByteFrequencyData(data);
-  analyser.getByteTimeDomainData(timeData);
-  drawGrid(ctx, canvas.width, canvas.height);
-  const barWidth = canvas.width / data.length;
-  let max = 0;
-  let maxIndex = 0;
-  let highEnergy = 0;
-  let lowEnergy = 0;
-  data.forEach((value, index) => {
-    if (value > max) {
-      max = value;
-      maxIndex = index;
-    }
-    if (index < data.length * 0.16) lowEnergy += value;
-    if (index > data.length * 0.55) highEnergy += value;
-    const height = Math.max(mode === "mic" && value > 0 ? 3 : 0, (value / 255) * canvas.height * 0.82);
-    const hue = mode === "media" ? 170 + (index / data.length) * 120 : 170 - (index / data.length) * 80;
-    ctx.fillStyle = `hsl(${hue}, 86%, ${42 + value / 8}%)`;
-    ctx.fillRect(index * barWidth, canvas.height - height, Math.max(1, barWidth - 1), height);
-  });
-  const waveStats = getWaveStats(timeData);
-  if (mode === "media" || mode === "mic") {
-    ctx.globalCompositeOperation = "lighter";
-    ctx.strokeStyle = mode === "mic" ? "rgba(255, 191, 63, 0.86)" : "rgba(255, 191, 63, 0.75)";
-    ctx.lineWidth = mode === "mic" ? 4 : 3;
-    ctx.beginPath();
-    const autoScale = mode === "mic" ? Math.max(1, Math.min(28, 72 / Math.max(1, waveStats.peakToPeak))) : 1;
-    for (let i = 0; i < timeData.length; i += 4) {
-      const x = (i / timeData.length) * canvas.width;
-      const y = canvas.height * 0.46 + ((timeData[i] - 128) / 128) * (mode === "mic" ? 130 * autoScale : 90);
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    }
-    ctx.stroke();
-    ctx.globalCompositeOperation = "source-over";
-    if (mode === "mic") {
-      ctx.fillStyle = waveStats.peakToPeak <= 2 ? "#ffbf3f" : "#a8b8cc";
-      ctx.font = "20px Microsoft JhengHei, sans-serif";
-      ctx.fillText(`訊號振幅 ${waveStats.peakToPeak}`, 24, canvas.height - 24);
-    }
-  }
-  const db = rmsToDb(timeData);
-  const peakFrequency = Math.round((maxIndex * audioContext.sampleRate) / analyser.fftSize);
-  return { db, peakFrequency, lowEnergy, highEnergy, max, waveStats };
-}
-
-async function startMic() {
-  const context = await ensureAudio();
-  if (micStream) stopMic();
-  const deviceId = micDeviceSelect.value;
-  const audioConstraints = deviceId ? { deviceId: { exact: deviceId } } : true;
-  micStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
-  micSource = context.createMediaStreamSource(micStream);
-  micGain = context.createGain();
-  micGain.gain.value = Number(document.querySelector("#micSensitivity").value);
-  micMonitorGain = context.createGain();
-  micMonitorGain.gain.value = 0;
-  micAnalyser = context.createAnalyser();
-  micAnalyser.fftSize = 4096;
-  micAnalyser.minDecibels = -110;
-  micAnalyser.maxDecibels = -10;
-  micAnalyser.smoothingTimeConstant = 0.55;
-  micSource.connect(micGain);
-  micGain.connect(micAnalyser);
-  micGain.connect(micMonitorGain).connect(context.destination);
-  const track = micStream.getAudioTracks()[0];
-  const label = track?.label ? `裝置：${track.label}。` : "";
-  await loadMicDevices();
-  document.querySelector("#micStatus").textContent = `麥克風已啟用，AudioContext：${context.state}。${label}請調整靈敏度並說話或拍手。`;
-}
-
-function stopMic() {
-  if (micStream) {
-    micStream.getTracks().forEach((track) => track.stop());
-  }
-  micStream = null;
-  micSource = null;
-  micGain = null;
-  micMonitorGain = null;
-  micAnalyser = null;
-  document.querySelector("#micStatus").textContent = "麥克風已停止。";
-}
-
-document.querySelector("#startMic").addEventListener("click", async () => {
-  try {
-    await startMic();
-  } catch (error) {
-    document.querySelector("#micStatus").textContent = `無法開啟麥克風：${error.message}`;
-  }
-});
-document.querySelector("#stopMic").addEventListener("click", stopMic);
-document.querySelector("#refreshMicDevices").addEventListener("click", async () => {
-  try {
-    await loadMicDevices();
-  } catch (error) {
-    document.querySelector("#micStatus").textContent = `無法偵測麥克風：${error.message}`;
-  }
-});
-micDeviceSelect.addEventListener("change", async () => {
-  if (!micStream) return;
-  try {
-    await startMic();
-  } catch (error) {
-    document.querySelector("#micStatus").textContent = `切換麥克風失敗：${error.message}`;
-  }
-});
-document.querySelector("#micSensitivity").addEventListener("input", (event) => {
-  if (micGain && audioContext) {
-    micGain.gain.setTargetAtTime(Number(event.target.value), audioContext.currentTime, 0.03);
-  }
-});
-
-function animateMic() {
-  if (micAnalyser && !document.querySelector("#freezeMic").checked) {
-    const result = drawSpectrum(canvases.mic, ctxs.mic, micAnalyser, "mic");
-    document.querySelector("#dbValue").textContent = `${result.db.toFixed(1)} dB`;
-    document.querySelector("#peakFrequency").textContent = result.max > 2 && result.waveStats.peakToPeak > 2 ? `${result.peakFrequency} Hz` : "-- Hz";
-    document.querySelector("#dbFill").style.height = `${result.db}%`;
-    document.querySelector("#soundState").textContent = result.waveStats.peakToPeak <= 2 ? "未收到訊號" : result.db < 35 ? "安靜" : result.db < 68 ? "一般聲音" : "偏大聲";
-    if (result.waveStats.peakToPeak <= 2) {
-      const selectedLabel = micDeviceSelect.selectedOptions[0]?.textContent || "目前裝置";
-      document.querySelector("#micStatus").textContent = `${selectedLabel} 已開啟，但目前收到靜音。請從「輸入裝置」改選其他麥克風，或檢查 Windows 輸入音量是否有跳動。`;
-    }
-  } else if (!micAnalyser) {
-    drawIdle(canvases.mic, ctxs.mic, "等待麥克風");
-  }
-  requestAnimationFrame(animateMic);
-}
-
-const mediaPlayer = document.querySelector("#mediaPlayer");
-const mediaStatus = document.querySelector("#mediaStatus");
-const youtubeEmbed = document.querySelector("#youtubeEmbed");
-const youtubeFallback = document.querySelector("#youtubeFallback");
-
-function getYouTubeId(url) {
-  try {
-    const parsed = new URL(url);
-    if (parsed.hostname.includes("youtu.be")) {
-      return parsed.pathname.split("/").filter(Boolean)[0] || "";
-    }
-    if (parsed.hostname.includes("youtube.com")) {
-      if (parsed.pathname.startsWith("/shorts/") || parsed.pathname.startsWith("/embed/")) {
-        return parsed.pathname.split("/").filter(Boolean)[1] || "";
-      }
-      return parsed.searchParams.get("v") || "";
-    }
-  } catch {
-    return "";
-  }
-  return "";
-}
-
-function resetMediaAnalysis() {
-  mediaMode = "idle";
-  document.querySelector("#beatEnergy").textContent = "--";
-  document.querySelector("#brightnessValue").textContent = "--";
-}
-
-function stopCapturedAudio() {
-  if (capturedAudioStream) {
-    capturedAudioStream.getTracks().forEach((track) => track.stop());
-  }
-  capturedAudioStream = null;
-}
-
-function connectMediaAnalysis(source, context) {
-  if (!mediaAnalyser) {
-    mediaAnalyser = context.createAnalyser();
-    mediaAnalyser.fftSize = 2048;
-  }
-  if (mediaActiveSource && mediaActiveSource !== source) {
-    try {
-      mediaActiveSource.disconnect();
-    } catch {
-      // The node may already be disconnected.
-    }
-    mediaConnected = false;
-  }
-  if (!mediaConnected || mediaActiveSource !== source) {
-    source.connect(mediaAnalyser);
-    mediaAnalyser.connect(context.destination);
-    mediaActiveSource = source;
-    mediaConnected = true;
-  }
-}
-
-function loadMediaUrl(url) {
-  if (!url) return "empty";
-  loadedMediaUrl = url;
-  resetMediaAnalysis();
-  stopCapturedAudio();
-  const youtubeId = getYouTubeId(url);
-  if (youtubeId) {
-    const safeYouTubeUrl = `https://www.youtube.com/watch?v=${encodeURIComponent(youtubeId)}`;
-    mediaPlayer.pause();
-    mediaPlayer.removeAttribute("src");
-    mediaPlayer.load();
-    mediaPlayer.hidden = true;
-    mediaMode = "youtube";
-    youtubeFallback.hidden = false;
-    youtubeFallback.innerHTML = `<strong>YouTube 連結</strong><p class="hint">YouTube 不能被網頁直接讀取聲音。按「播放」或「分析 YouTube 聲音」後，請在 Chrome 分享視窗選擇播放中的 YouTube 分頁並勾選分頁音訊。</p><a href="${safeYouTubeUrl}" target="_blank" rel="noreferrer">在 YouTube 開啟</a>`;
-    youtubeEmbed.hidden = false;
-    youtubeEmbed.innerHTML = `<iframe title="YouTube 播放器" src="https://www.youtube.com/embed/${youtubeId}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>`;
-    mediaStatus.textContent = "已載入 YouTube。按「播放」會開啟 Chrome 分頁音訊擷取視窗；選擇 YouTube 分頁並勾選分頁音訊後，就會產生音頻圖。";
-    drawIdle(canvases.media, ctxs.media, "按播放後選擇 YouTube 分頁音訊");
-    return "youtube";
-  }
-  youtubeEmbed.hidden = true;
-  youtubeEmbed.innerHTML = "";
-  youtubeFallback.hidden = true;
-  youtubeFallback.innerHTML = "";
-  mediaPlayer.hidden = false;
-  mediaMode = "direct";
-  mediaPlayer.src = url;
-  mediaStatus.textContent = "已載入直接媒體網址，按播放後會產生動態音頻圖。若仍無法播放，來源網站可能封鎖跨站串流。";
-  return "direct";
-}
-
-async function captureTabAudio() {
-  const context = await ensureAudio();
-  stopCapturedAudio();
-  capturedAudioStream = await navigator.mediaDevices.getDisplayMedia({
-    video: true,
-    audio: true
-  });
-  const hasAudio = capturedAudioStream.getAudioTracks().length > 0;
-  if (!hasAudio) {
-    capturedAudioStream.getTracks().forEach((track) => track.stop());
-    capturedAudioStream = null;
-    mediaStatus.textContent = "沒有擷取到分頁音訊。請在 Chrome 分享視窗選擇分頁，並勾選「分享分頁音訊」。";
-    return;
-  }
-  const streamSource = context.createMediaStreamSource(capturedAudioStream);
-  connectMediaAnalysis(streamSource, context);
-  mediaMode = "capture";
-  mediaStatus.textContent = "正在分析 YouTube/分頁音訊。請確認影片正在播放，且分享時有勾選分頁音訊。";
-  capturedAudioStream.getVideoTracks().forEach((track) => {
-    track.addEventListener("ended", () => {
-      mediaMode = "idle";
-      mediaStatus.textContent = "分頁音訊擷取已停止。";
-    });
-  });
-}
-
-document.querySelector("#mediaFile").addEventListener("change", (event) => {
-  const file = event.target.files[0];
-  if (file) {
-    resetMediaAnalysis();
-    stopCapturedAudio();
-    youtubeEmbed.hidden = true;
-    youtubeEmbed.innerHTML = "";
-    youtubeFallback.hidden = true;
-    youtubeFallback.innerHTML = "";
-    mediaPlayer.hidden = false;
-    mediaMode = "direct";
-    loadedMediaUrl = "";
-    mediaPlayer.src = URL.createObjectURL(file);
-    mediaStatus.textContent = "已載入本機媒體檔，按播放後會產生動態音頻圖。";
-  }
-});
-document.querySelector("#loadUrl").addEventListener("click", () => {
-  const url = document.querySelector("#mediaUrl").value.trim();
-  loadMediaUrl(url);
-});
-document.querySelector("#playMedia").addEventListener("click", async () => {
-  const url = document.querySelector("#mediaUrl").value.trim();
-  if (url && (url !== loadedMediaUrl || (mediaMode !== "direct" && mediaMode !== "youtube"))) {
-    loadMediaUrl(url);
-  }
-  if (mediaMode === "youtube") {
-    mediaStatus.textContent = "正在開啟分頁音訊擷取。請選擇播放 YouTube 的分頁，並勾選「分享分頁音訊」。";
-    try {
-      await captureTabAudio();
-    } catch (error) {
-      mediaStatus.textContent = `無法分析 YouTube 聲音：${error.message}`;
-    }
-    return;
-  }
-  if (mediaPlayer.hidden || !mediaPlayer.currentSrc) {
-    if (url) loadMediaUrl(url);
-    if (mediaPlayer.hidden || !mediaPlayer.currentSrc) {
-      mediaStatus.textContent = "目前沒有可分析的媒體。請貼上直接媒體網址，或貼 YouTube 後按播放並選擇分頁音訊。";
-      return;
-    }
-  }
-  const context = await ensureAudio();
-  if (!mediaElementSource) {
-    mediaElementSource = context.createMediaElementSource(mediaPlayer);
-  }
-  connectMediaAnalysis(mediaElementSource, context);
-  try {
-    await mediaPlayer.play();
-    mediaStatus.textContent = "正在分析媒體聲音並產生動態音頻圖。";
-  } catch (error) {
-    mediaStatus.textContent = `播放失敗：${error.message}。請改用本機檔案或可直接串流的媒體檔。`;
-  }
-});
-document.querySelector("#pauseMedia").addEventListener("click", () => {
-  if (!mediaPlayer.hidden) mediaPlayer.pause();
-});
-document.querySelector("#captureTabAudio").addEventListener("click", async () => {
-  try {
-    await captureTabAudio();
-  } catch (error) {
-    mediaStatus.textContent = `無法擷取分頁音訊：${error.message}`;
-  }
-});
-
-function animateMedia() {
-  if (mediaMode === "youtube") {
-    drawIdle(canvases.media, ctxs.media, "按播放後選擇 YouTube 分頁音訊");
-  } else if ((mediaMode === "direct" || mediaMode === "capture") && mediaAnalyser) {
-    const result = drawSpectrum(canvases.media, ctxs.media, mediaAnalyser, "media");
-    document.querySelector("#beatEnergy").textContent = result.lowEnergy > 22000 ? "強" : result.lowEnergy > 9000 ? "中" : "弱";
-    document.querySelector("#brightnessValue").textContent = result.highEnergy > 28000 ? "明亮" : result.highEnergy > 13000 ? "普通" : "溫和";
-  } else {
-    drawIdle(canvases.media, ctxs.media, "等待媒體播放");
-  }
-  requestAnimationFrame(animateMedia);
-}
-
-function drawIdle(canvas, ctx, label) {
-  drawGrid(ctx, canvas.width, canvas.height);
-  ctx.fillStyle = "#a8b8cc";
-  ctx.font = "24px Microsoft JhengHei, sans-serif";
-  ctx.fillText(label, 28, 46);
-}
-
-function playChallengeTone(frequency) {
-  ensureAudio().then((context) => {
-    const osc = context.createOscillator();
-    const gain = context.createGain();
-    const compressor = context.createDynamicsCompressor();
-    const baseVolume = Number(document.querySelector("#challengeVolume")?.value || 0.28);
-    const compensation = frequency < 180 ? 1.45 : frequency > 7000 ? 1.3 : 1;
-    const volume = Math.min(0.72, baseVolume * compensation);
-    osc.frequency.value = frequency;
-    osc.type = "triangle";
-    compressor.threshold.value = -16;
-    compressor.knee.value = 18;
-    compressor.ratio.value = 7;
-    compressor.attack.value = 0.004;
-    compressor.release.value = 0.16;
-    gain.gain.setValueAtTime(0.0001, context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(volume, context.currentTime + 0.04);
-    gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 1.2);
-    osc.connect(gain).connect(compressor).connect(context.destination);
-    osc.start();
-    osc.stop(context.currentTime + 1.25);
-  });
-}
-
-document.querySelector("#newChallenge").addEventListener("click", () => {
-  const bank = [
-    { key: "low", min: 80, max: 300 },
-    { key: "mid", min: 300, max: 2000 },
-    { key: "high", min: 2000, max: 9000 },
-    { key: "ultra", min: 9000, max: 15000 }
-  ];
-  const item = bank[Math.floor(Math.random() * bank.length)];
-  const frequency = Math.round(item.min + Math.random() * (item.max - item.min));
-  challengeAnswer = item.key;
-  playChallengeTone(frequency);
-  document.querySelector("#gameFeedback").textContent = "請選出你聽到的頻率範圍。";
-});
-document.querySelector("#frequencyChoices").addEventListener("click", (event) => {
-  const button = event.target.closest("button");
-  if (!button || !challengeAnswer) return;
-  document.querySelector("#gameFeedback").textContent =
-    button.dataset.choice === challengeAnswer ? "答對了！你的耳朵抓到頻率線索。" : "再試一次。可以注意聲音是沉、清楚、尖，還是幾乎聽不到。";
-});
-
-const biologicalSounds = [
-  { id: "dog", name: "狗", group: "哺乳類" },
-  { id: "cat", name: "貓", group: "哺乳類" },
-  { id: "frog", name: "青蛙", group: "兩棲類" },
-  { id: "cricket", name: "蟋蟀", group: "昆蟲" },
-  { id: "bee", name: "蜜蜂", group: "昆蟲" },
-  { id: "mosquito", name: "蚊子", group: "昆蟲" },
-  { id: "owl", name: "貓頭鷹", group: "鳥類" },
-  { id: "dolphin", name: "海豚", group: "海洋哺乳類" },
-  { id: "whale", name: "鯨魚", group: "海洋哺乳類" },
-  { id: "rooster", name: "公雞", group: "鳥類" },
-  { id: "cow", name: "牛", group: "哺乳類" },
-  { id: "sheep", name: "羊", group: "哺乳類" },
-  { id: "horse", name: "馬", group: "哺乳類" },
-  { id: "elephant", name: "大象", group: "哺乳類" },
-  { id: "wolf", name: "狼", group: "哺乳類" },
-  { id: "crow", name: "烏鴉", group: "鳥類" },
-  { id: "duck", name: "鴨子", group: "鳥類" },
-  { id: "cicada", name: "蟬", group: "昆蟲" },
-  { id: "monkey", name: "猴子", group: "哺乳類" },
-  { id: "pig", name: "豬", group: "哺乳類" },
-  { id: "snake", name: "蛇", group: "爬蟲類" },
-  { id: "goat", name: "山羊", group: "哺乳類" }
+const landmarks = [
+  { county: "基隆市", region: "north", place: "正濱漁港", x: 8, z: -43, model: "harbor", note: "彩色屋岸線與港灣燈塔，標記北台灣海門。" },
+  { county: "臺北市", region: "north", place: "台北 101", x: 1, z: -38, model: "tower101", note: "以摩天樓群呈現信義天際線，是北部最醒目的城市地標。" },
+  { county: "新北市", region: "north", place: "野柳女王頭", x: 11, z: -37, model: "rock", note: "海蝕地形與岬角步道，適合觀察東北角海岸。" },
+  { county: "桃園市", region: "north", place: "大溪老街", x: -8, z: -34, model: "street", note: "街屋牌樓與河階地形，連接北部丘陵與台地。" },
+  { county: "新竹縣市", region: "north", place: "新竹城隍廟", x: -15, z: -27, model: "temple", note: "廟埕與城區模型代表風城生活圈。" },
+  { county: "苗栗縣", region: "central", place: "龍騰斷橋", x: -18, z: -18, model: "bridge", note: "磚拱橋與丘陵地貌，呈現鐵道與地震地景。" },
+  { county: "臺中市", region: "central", place: "臺中國家歌劇院", x: -15, z: -8, model: "opera", note: "曲牆建築與都會軸線，位於中部盆地核心。" },
+  { county: "彰化縣", region: "central", place: "八卦山大佛", x: -21, z: 1, model: "buddha", note: "山丘上的大佛與扇形平原，俯瞰西部聚落。" },
+  { county: "南投縣", region: "central", place: "日月潭", x: -2, z: 4, model: "lake", note: "內陸湖泊與環湖山勢，標示台灣中心地景。" },
+  { county: "雲林縣", region: "central", place: "北港朝天宮", x: -20, z: 14, model: "temple", note: "媽祖信仰重鎮，與濁水溪沖積平原相鄰。" },
+  { county: "嘉義縣市", region: "south", place: "阿里山森林鐵路", x: -10, z: 21, model: "rail", note: "山林鐵道爬升到雲海茶園，是高山旅遊入口。" },
+  { county: "臺南市", region: "south", place: "赤崁樓", x: -21, z: 31, model: "fort", note: "古城牆與府城街廓，呈現台灣早期城市記憶。" },
+  { county: "高雄市", region: "south", place: "龍虎塔與港灣", x: -15, z: 43, model: "pagoda", note: "蓮池潭塔樓與港口起重機，連結工業城市與觀光湖景。" },
+  { county: "屏東縣", region: "south", place: "墾丁鵝鑾鼻", x: -4, z: 59, model: "lighthouse", note: "南端燈塔、珊瑚礁台地與海角，是飛行路線的終點。" },
+  { county: "宜蘭縣", region: "east", place: "龜山島海岸", x: 16, z: -24, model: "island", note: "沖積平原外的火山島，標記蘭陽海岸視野。" },
+  { county: "花蓮縣", region: "east", place: "太魯閣峽谷", x: 16, z: 5, model: "gorge", note: "大理岩峽谷切穿中央山脈，是東部最具張力的地景。" },
+  { county: "臺東縣", region: "east", place: "三仙台", x: 15, z: 38, model: "arch", note: "跨海拱橋與礫石海岸，沿著縱谷南行可抵達。" },
+  { county: "澎湖縣", region: "islands", place: "雙心石滬", x: -52, z: 22, model: "fishtrap", note: "玄武岩海岸旁的潮間帶石滬，位於台灣海峽。" },
+  { county: "金門縣", region: "islands", place: "莒光樓", x: -72, z: 2, model: "gate", note: "城樓與閩南聚落，放在西側離島群作為空拍節點。" },
+  { county: "連江縣", region: "islands", place: "芹壁聚落", x: -58, z: -48, model: "village", note: "石屋聚落與海灣坡地，標示馬祖列島。" },
+  { county: "綠島", region: "islands", place: "朝日溫泉", x: 35, z: 39, model: "spring", note: "海岸溫泉與環島公路，是東南外海亮點。" },
+  { county: "蘭嶼", region: "islands", place: "拼板舟海岸", x: 43, z: 54, model: "canoe", note: "達悟文化與火山島地形，位於台灣東南方。" }
 ];
 
-const bioVoiceHints = {
-  dog: "汪 汪",
-  cat: "喵 嗚",
-  frog: "呱 呱",
-  cricket: "唧 唧 唧",
-  bee: "嗡 嗡",
-  mosquito: "嗯 嗡",
-  owl: "呼 呼",
-  dolphin: "咿 咿",
-  whale: "嗚 嗚",
-  rooster: "喔 喔 啼",
-  cow: "哞",
-  sheep: "咩 咩",
-  horse: "嘶 嘶",
-  elephant: "嗚 哞",
-  wolf: "嗷 嗚",
-  crow: "啊 啊",
-  duck: "嘎 嘎",
-  cicada: "知 了 知 了",
-  monkey: "吱 吱",
-  pig: "哼 哼",
-  snake: "嘶 嘶",
-  goat: "咩 欸"
+const landmarkObjects = new Map();
+const keyState = new Set();
+let selected = null;
+let autoTour = false;
+let tourIndex = 0;
+let tourClock = 0;
+let isNight = false;
+let speedMultiplier = 1;
+const cameraGoal = {
+  position: camera.position.clone(),
+  target: controls.target.clone()
 };
 
-function createNoiseBuffer(context, seconds = 1) {
-  const buffer = context.createBuffer(1, context.sampleRate * seconds, context.sampleRate);
-  const data = buffer.getChannelData(0);
-  for (let i = 0; i < data.length; i += 1) {
-    data[i] = Math.random() * 2 - 1;
-  }
-  return buffer;
-}
-
-function playToneEvent(context, output, { frequency, start, duration, type = "sine", volume = 0.12, endFrequency = null }) {
-  const osc = context.createOscillator();
-  const gain = context.createGain();
-  osc.type = type;
-  osc.frequency.setValueAtTime(frequency, start);
-  if (endFrequency) {
-    osc.frequency.exponentialRampToValueAtTime(Math.max(1, endFrequency), start + duration);
-  }
-  gain.gain.setValueAtTime(0.0001, start);
-  gain.gain.exponentialRampToValueAtTime(volume, start + 0.025);
-  gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
-  osc.connect(gain).connect(output);
-  osc.start(start);
-  osc.stop(start + duration + 0.04);
-}
-
-function playNoiseEvent(context, output, { start, duration, frequency = 1200, type = "bandpass", volume = 0.08 }) {
-  const source = context.createBufferSource();
-  const filter = context.createBiquadFilter();
-  const gain = context.createGain();
-  source.buffer = createNoiseBuffer(context, Math.max(0.4, duration + 0.1));
-  filter.type = type;
-  filter.frequency.setValueAtTime(frequency, start);
-  filter.Q.value = 8;
-  gain.gain.setValueAtTime(0.0001, start);
-  gain.gain.exponentialRampToValueAtTime(volume, start + 0.02);
-  gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
-  source.connect(filter).connect(gain).connect(output);
-  source.start(start);
-  source.stop(start + duration + 0.04);
-}
-
-function speakBioHint(id) {
-  if (!document.querySelector("#bioVoiceHint")?.checked || !("speechSynthesis" in window)) return;
-  const text = bioVoiceHints[id];
-  if (!text) return;
-  window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = "zh-TW";
-  utterance.rate = 0.86;
-  utterance.pitch = id === "elephant" || id === "cow" || id === "whale" ? 0.55 : id === "mosquito" || id === "cricket" || id === "cicada" ? 1.55 : 1.08;
-  utterance.volume = Math.min(1, Math.max(0.35, Number(document.querySelector("#bioVolume")?.value || 1.7) / 2.4));
-  setTimeout(() => window.speechSynthesis.speak(utterance), 130);
-}
-
-async function synthBiologicalSound(id) {
-  const context = await ensureAudio();
-  const now = context.currentTime + 0.04;
-  const master = context.createGain();
-  const compressor = context.createDynamicsCompressor();
-  master.gain.value = Number(document.querySelector("#bioVolume")?.value || 1.7);
-  compressor.threshold.value = -18;
-  compressor.knee.value = 20;
-  compressor.ratio.value = 8;
-  compressor.attack.value = 0.004;
-  compressor.release.value = 0.18;
-  master.connect(compressor).connect(context.destination);
-  const tone = (frequency, start, duration, type, volume, endFrequency = null) =>
-    playToneEvent(context, master, { frequency, start: now + start, duration, type, volume, endFrequency });
-  const noise = (start, duration, frequency, type, volume) =>
-    playNoiseEvent(context, master, { start: now + start, duration, frequency, type, volume });
-
-  switch (id) {
-    case "dog":
-      [0, 0.22, 0.62].forEach((t) => { tone(150, t, 0.16, "square", 0.12, 95); noise(t, 0.12, 700, "bandpass", 0.09); });
-      break;
-    case "cat":
-      tone(540, 0, 0.72, "sine", 0.12, 880); tone(920, 0.08, 0.42, "triangle", 0.05, 620);
-      break;
-    case "frog":
-      [0, 0.38, 0.76].forEach((t) => tone(120, t, 0.24, "sawtooth", 0.14, 92));
-      break;
-    case "cricket":
-      [0, 0.08, 0.16, 0.42, 0.5, 0.58].forEach((t) => tone(5200, t, 0.045, "square", 0.055));
-      break;
-    case "bee":
-      [0, 0.18, 0.36, 0.54, 0.72].forEach((t, i) => tone(i % 2 ? 245 : 210, t, 0.18, "sawtooth", 0.06));
-      break;
-    case "mosquito":
-      tone(760, 0, 1.05, "sawtooth", 0.045, 980); tone(1540, 0, 1.05, "sine", 0.025, 1780);
-      break;
-    case "owl":
-      [0, 0.58].forEach((t) => tone(420, t, 0.42, "sine", 0.1, 260));
-      break;
-    case "dolphin":
-      [0, 0.12, 0.24, 0.46, 0.58].forEach((t) => tone(3600, t, 0.08, "sine", 0.08, 7200));
-      break;
-    case "whale":
-      tone(110, 0, 1.2, "sine", 0.16, 54); tone(180, 0.22, 0.95, "triangle", 0.08, 90);
-      break;
-    case "rooster":
-      tone(520, 0, 0.28, "sawtooth", 0.11, 900); tone(780, 0.24, 0.32, "sawtooth", 0.1, 520); tone(1080, 0.55, 0.36, "sawtooth", 0.12, 720);
-      break;
-    case "cow":
-      tone(135, 0, 0.9, "sawtooth", 0.14, 100); tone(220, 0.08, 0.75, "sine", 0.05, 160);
-      break;
-    case "sheep":
-      [0, 0.34].forEach((t) => { tone(300, t, 0.28, "triangle", 0.12, 430); tone(520, t + 0.05, 0.18, "sine", 0.045); });
-      break;
-    case "horse":
-      [0, 0.16, 0.32].forEach((t) => tone(460, t, 0.13, "sawtooth", 0.1, 260)); noise(0.52, 0.24, 1400, "highpass", 0.05);
-      break;
-    case "elephant":
-      tone(62, 0, 0.72, "sawtooth", 0.18, 140); tone(220, 0.08, 0.44, "triangle", 0.08, 360);
-      break;
-    case "wolf":
-      tone(260, 0, 1.1, "sine", 0.12, 690); tone(520, 0.16, 0.84, "triangle", 0.05, 780);
-      break;
-    case "crow":
-      [0, 0.34, 0.7].forEach((t) => { tone(760, t, 0.14, "square", 0.08, 520); noise(t, 0.12, 1600, "bandpass", 0.07); });
-      break;
-    case "duck":
-      [0, 0.22, 0.44].forEach((t) => tone(360, t, 0.18, "sawtooth", 0.11, 250));
-      break;
-    case "cicada":
-      [0, 0.12, 0.24, 0.36, 0.48, 0.6, 0.72].forEach((t) => tone(3900, t, 0.1, "sawtooth", 0.05, 4200));
-      break;
-    case "monkey":
-      [0, 0.18, 0.36, 0.72].forEach((t, i) => tone(i % 2 ? 900 : 620, t, 0.16, "triangle", 0.1, i % 2 ? 520 : 980));
-      break;
-    case "pig":
-      [0, 0.28, 0.56].forEach((t) => { tone(180, t, 0.18, "sawtooth", 0.1, 130); noise(t, 0.16, 500, "lowpass", 0.07); });
-      break;
-    case "snake":
-      noise(0, 0.85, 5200, "highpass", 0.06); noise(0.28, 0.45, 6800, "highpass", 0.04);
-      break;
-    case "goat":
-      [0, 0.38].forEach((t) => tone(420, t, 0.34, "sawtooth", 0.11, 580));
-      break;
-    default:
-      tone(440, 0, 0.45, "sine", 0.08);
-  }
-  speakBioHint(id);
-}
-
-let bioManifest = {};
-let bioAudioEl;
-let bioMediaSource;
-let bioGainNode;
-let bioStopTimer;
-const BIO_MAX_SECONDS = 5;
-
-async function loadBioManifest() {
-  try {
-    const response = await fetch("./audio/bio/manifest.json");
-    if (!response.ok) throw new Error(String(response.status));
-    bioManifest = await response.json();
-  } catch {
-    bioManifest = {};
-  }
-  renderAudioCredits();
-}
-
-function renderAudioCredits() {
-  const section = document.querySelector("#audioCredits");
-  const list = document.querySelector("#audioCreditsList");
-  if (!section || !list) return;
-  const nameById = Object.fromEntries(biologicalSounds.map((item) => [item.id, item.name]));
-  const entries = biologicalSounds
-    .map((item) => ({ id: item.id, name: nameById[item.id], ...bioManifest[item.id] }))
-    .filter((entry) => entry.file);
-  if (!entries.length) {
-    section.hidden = true;
-    return;
-  }
-  list.innerHTML = entries.map((entry) => {
-    const title = (entry.src || entry.file).replace(/^File:/, "");
-    const source = entry.url
-      ? `<a href="${entry.url}" target="_blank" rel="noreferrer">${title}</a>`
-      : title;
-    const license = entry.license ? `（${entry.license}）` : "";
-    const author = entry.artist ? `，作者：${entry.artist}` : "";
-    return `<li><strong>${entry.name}</strong>：${source}${author}${license}</li>`;
-  }).join("");
-  section.hidden = false;
-}
-
-function bioVolume() {
-  return Number(document.querySelector("#bioVolume")?.value || 1.7);
-}
-
-async function playRealBioSound(entry) {
-  const context = await ensureAudio();
-  if (!bioAudioEl) {
-    bioAudioEl = new Audio();
-    bioAudioEl.preload = "auto";
-    bioMediaSource = context.createMediaElementSource(bioAudioEl);
-    bioGainNode = context.createGain();
-    const compressor = context.createDynamicsCompressor();
-    compressor.threshold.value = -18;
-    compressor.knee.value = 20;
-    compressor.ratio.value = 8;
-    compressor.attack.value = 0.004;
-    compressor.release.value = 0.18;
-    bioMediaSource.connect(bioGainNode).connect(compressor).connect(context.destination);
-  }
-  bioGainNode.gain.setTargetAtTime(bioVolume(), context.currentTime, 0.02);
-  clearTimeout(bioStopTimer);
-  bioAudioEl.pause();
-  bioAudioEl.src = `./audio/bio/${entry.file}`;
-  bioAudioEl.currentTime = 0;
-  await bioAudioEl.play();
-  bioStopTimer = setTimeout(() => bioAudioEl.pause(), BIO_MAX_SECONDS * 1000);
-}
-
-async function playBiologicalSound(id) {
-  const entry = bioManifest[id];
-  if (entry?.file) {
-    try {
-      await playRealBioSound(entry);
-      speakBioHint(id);
-      return;
-    } catch {
-      // Fall back to synthesis if the recording cannot load or play.
-    }
-  }
-  await synthBiologicalSound(id);
-}
-
-function pickOptions(answer) {
-  const options = [answer];
-  const pool = biologicalSounds.filter((item) => item.id !== answer.id).sort(() => Math.random() - 0.5);
-  options.push(...pool.slice(0, 3));
-  return options.sort(() => Math.random() - 0.5);
-}
-
-function startBioChallenge() {
-  bioAnswer = biologicalSounds[Math.floor(Math.random() * biologicalSounds.length)];
-  bioRound += 1;
-  document.querySelector("#bioRound").textContent = String(bioRound);
-  document.querySelector("#bioGroup").textContent = bioAnswer.group;
-  document.querySelector("#bioChoices").innerHTML = pickOptions(bioAnswer).map((item) =>
-    `<button data-bio="${item.id}">${item.name}</button>`
-  ).join("");
-  document.querySelector("#bioFeedback").textContent = `第 ${bioRound} 題：仔細聽，猜猜是哪一種生物。`;
-  playBiologicalSound(bioAnswer.id);
-}
-
-document.querySelector("#bioVolume").addEventListener("input", () => {
-  if (bioGainNode && audioContext) {
-    bioGainNode.gain.setTargetAtTime(bioVolume(), audioContext.currentTime, 0.03);
-  }
+const landMaterial = new THREE.MeshStandardMaterial({
+  color: 0x2f8f60,
+  roughness: 0.82,
+  metalness: 0.03
 });
-document.querySelector("#newBioChallenge").addEventListener("click", startBioChallenge);
-document.querySelector("#replayBioSound").addEventListener("click", () => {
-  if (!bioAnswer) {
-    document.querySelector("#bioFeedback").textContent = "請先按「隨機出題」。";
-    return;
-  }
-  playBiologicalSound(bioAnswer.id);
-});
-document.querySelector("#bioChoices").addEventListener("click", (event) => {
-  const button = event.target.closest("button");
-  if (!button || !bioAnswer) return;
-  const correct = button.dataset.bio === bioAnswer.id;
-  if (correct) {
-    bioScore += 1;
-    document.querySelector("#bioScore").textContent = String(bioScore);
-  }
-  document.querySelector("#bioFeedback").textContent = correct
-    ? `答對了！這是「${bioAnswer.name}」的聲音線索。`
-    : `還差一點，答案是「${bioAnswer.name}」。按「隨機出題」再挑戰。`;
-  [...document.querySelectorAll("#bioChoices button")].forEach((choice) => {
-    choice.disabled = true;
-    if (choice.dataset.bio === bioAnswer.id) choice.classList.add("primary-action");
+const mountainMaterial = new THREE.MeshStandardMaterial({ color: 0x486b48, roughness: 0.9 });
+const coastMaterial = new THREE.MeshStandardMaterial({ color: 0xf1d38c, roughness: 0.72 });
+const cityMaterial = new THREE.MeshStandardMaterial({ color: 0xd9e7f5, roughness: 0.45, metalness: 0.12 });
+const glowMaterial = new THREE.MeshBasicMaterial({ color: 0x8ff8e8, transparent: true, opacity: 0.35 });
+
+const sun = new THREE.DirectionalLight(0xffffff, 3.2);
+sun.position.set(-35, 80, 42);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -90;
+sun.shadow.camera.right = 90;
+sun.shadow.camera.top = 90;
+sun.shadow.camera.bottom = -90;
+scene.add(sun);
+scene.add(new THREE.HemisphereLight(0x9fd5ff, 0x173015, 1.7));
+
+function makeTaiwanShape(scale = 1) {
+  const pts = [
+    [1, -50], [8, -44], [14, -34], [18, -22], [20, -8], [19, 8], [16, 24],
+    [13, 38], [8, 51], [2, 63], [-4, 66], [-9, 58], [-12, 45], [-16, 31],
+    [-21, 17], [-24, 2], [-24, -13], [-20, -27], [-13, -39], [-5, -47]
+  ];
+  const shape = new THREE.Shape();
+  pts.forEach(([x, z], index) => {
+    const px = x * scale;
+    const py = z * scale;
+    if (index === 0) shape.moveTo(px, py);
+    else shape.lineTo(px, py);
   });
-});
-
-function miniSvg(type) {
-  const common = 'viewBox="0 0 320 180" role="img"';
-  const map = {
-    frequency: `<svg ${common} aria-label="頻率比較"><rect width="320" height="180" fill="#0b1421"/><path d="M18 96 C58 38 98 38 138 96 S218 154 302 96" fill="none" stroke="#18b6a2" stroke-width="7"/><path d="M18 48 C30 28 42 28 54 48 S78 68 90 48 S114 28 126 48 S150 68 162 48 S186 28 198 48 S222 68 234 48 S258 28 270 48 S294 68 306 48" fill="none" stroke="#ffbf3f" stroke-width="5"/></svg>`,
-    amplitude: `<svg ${common} aria-label="振幅比較"><rect width="320" height="180" fill="#0b1421"/><path d="M18 90 C58 72 98 72 138 90 S218 108 302 90" fill="none" stroke="#4e8cff" stroke-width="5"/><path d="M18 92 C58 22 98 22 138 92 S218 158 302 92" fill="none" stroke="#ff5d93" stroke-width="7"/></svg>`,
-    spectrum: `<svg ${common} aria-label="頻譜柱狀圖"><rect width="320" height="180" fill="#0b1421"/><g fill="#18b6a2"><rect x="34" y="92" width="22" height="58"/><rect x="70" y="54" width="22" height="96"/><rect x="106" y="78" width="22" height="72"/><rect x="142" y="30" width="22" height="120"/><rect x="178" y="62" width="22" height="88"/><rect x="214" y="104" width="22" height="46"/><rect x="250" y="86" width="22" height="64"/></g></svg>`,
-    tuning: `<svg ${common} aria-label="調音叉"><rect width="320" height="180" fill="#0b1421"/><g class="tuning-fork"><path d="M142 34 V96 Q142 122 160 122 Q178 122 178 96 V34" fill="none" stroke="#ffbf3f" stroke-width="12" stroke-linecap="round"/><path d="M160 122 V154" stroke="#ffbf3f" stroke-width="12" stroke-linecap="round"/></g><path class="tuning-wave" d="M88 62 C110 42 124 42 136 62M184 62 C206 42 220 42 242 62" fill="none" stroke="#18b6a2" stroke-width="4"/></svg>`,
-    noise: `<svg ${common} aria-label="噪音計"><rect width="320" height="180" fill="#0b1421"/><rect x="94" y="48" width="132" height="76" rx="12" fill="#142234" stroke="#4e8cff"/><text class="noise-text" x="124" y="96" fill="#e9f2ff" font-size="30">72 dB</text><path class="noise-bar" d="M74 138 H246" stroke="#ff5d93" stroke-width="10" stroke-linecap="round"/></svg>`,
-    speech: `<svg ${common} aria-label="語音波形"><rect width="320" height="180" fill="#0b1421"/><path class="speech-wave" d="M34 92 Q58 40 82 92 T130 92 T178 92 T226 92 T286 92" fill="none" stroke="#18b6a2" stroke-width="6"/><circle class="speech-dot" cx="82" cy="92" r="8" fill="#ffbf3f"/><circle class="speech-dot speech-dot-2" cx="178" cy="92" r="8" fill="#ffbf3f"/></svg>`,
-    visualizer: `<svg ${common} aria-label="音樂視覺化"><rect width="320" height="180" fill="#0b1421"/><circle class="viz-ring" cx="160" cy="90" r="44" fill="none" stroke="#4e8cff" stroke-width="10"/><circle class="viz-ring viz-ring-2" cx="160" cy="90" r="72" fill="none" stroke="#18b6a2" stroke-width="4"/><g fill="#ffbf3f"><rect class="viz-bar" x="42" y="92" width="18" height="54"/><rect class="viz-bar viz-bar-2" x="70" y="64" width="18" height="82"/><rect class="viz-bar viz-bar-3" x="232" y="74" width="18" height="72"/><rect class="viz-bar viz-bar-4" x="260" y="102" width="18" height="44"/></g></svg>`,
-    ultrasound: `<svg ${common} aria-label="超音波測距"><rect width="320" height="180" fill="#0b1421"/><rect x="42" y="68" width="58" height="44" rx="8" fill="#142234" stroke="#18b6a2"/><g class="sonar"><path class="sonar-wave" d="M108 74 C150 42 188 42 228 74" fill="none" stroke="#ffbf3f" stroke-width="4"/><path class="sonar-wave sonar-wave-2" d="M108 92 C158 66 190 66 228 92" fill="none" stroke="#ffbf3f" stroke-width="4"/><path class="sonar-wave sonar-wave-3" d="M108 110 C150 138 188 138 228 110" fill="none" stroke="#ffbf3f" stroke-width="4"/></g><rect x="242" y="46" width="34" height="88" rx="6" fill="#4e8cff"/></svg>`,
-    insulation: `<svg ${common} aria-label="隔音材料"><rect width="320" height="180" fill="#0b1421"/><path class="insul-in" d="M40 90 C66 48 92 48 118 90 S170 132 196 90" fill="none" stroke="#ff5d93" stroke-width="5"/><rect x="202" y="36" width="32" height="118" fill="#18b6a2"/><rect x="244" y="36" width="32" height="118" fill="#4e8cff"/><path class="insul-out" d="M236 90 C250 78 260 78 276 90" fill="none" stroke="#a8b8cc" stroke-width="4"/></svg>`
-  };
-  return map[type] || map.spectrum;
+  shape.closePath();
+  return shape;
 }
 
-function conceptDemoMarkup(item) {
-  const controls = {
-    frequency: `
-      <div class="demo-controls">
-        <label>頻率 <output class="demo-out">300 Hz</output></label>
-        <input type="range" class="demo-freq" min="80" max="1200" step="10" value="300" aria-label="頻率" />
-        <button type="button" class="demo-play">▶ 試聽</button>
-      </div>`,
-    amplitude: `
-      <div class="demo-controls">
-        <label>振幅 <output class="demo-out">50%</output></label>
-        <input type="range" class="demo-amp" min="0" max="1" step="0.02" value="0.5" aria-label="振幅" />
-        <button type="button" class="demo-play">▶ 試聽</button>
-      </div>`,
-    spectrum: `
-      <div class="demo-controls">
-        <div class="demo-presets">
-          <button type="button" data-fp="bass" class="active">低音鼓</button>
-          <button type="button" data-fp="voice">人聲</button>
-          <button type="button" data-fp="bird">鳥鳴</button>
-          <button type="button" data-fp="noise">白噪音</button>
-        </div>
-      </div>`
-  };
-  const extra = controls[item.visual] || "";
-  return `<article class="concept-card demo-card" data-demo="${item.visual}">
-    <div class="demo-stage"><canvas class="demo-canvas" width="660" height="240"></canvas></div>
-    ${extra}
-    <h3>${item.title}</h3>
-    <p>${item.text}</p>
-  </article>`;
+function makeIsland(x, z, radius, color = 0x3d9566) {
+  const geometry = new THREE.CylinderGeometry(radius, radius * 1.18, 1.6, 34);
+  const mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color, roughness: 0.82 }));
+  mesh.position.set(x, 0.4, z);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  root.add(mesh);
+  return mesh;
 }
 
-function playDemoTone(frequency, amplitude = 0.5, seconds = 0.7) {
-  ensureAudio().then((context) => {
-    const osc = context.createOscillator();
-    const gain = context.createGain();
-    const compressor = context.createDynamicsCompressor();
-    const volume = Math.min(0.55, 0.05 + amplitude * 0.5);
-    osc.type = "sine";
-    osc.frequency.value = Math.max(1, frequency);
-    compressor.threshold.value = -16;
-    compressor.knee.value = 18;
-    compressor.ratio.value = 7;
-    gain.gain.setValueAtTime(0.0001, context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(Math.max(0.0002, volume), context.currentTime + 0.03);
-    gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + seconds);
-    osc.connect(gain).connect(compressor).connect(context.destination);
-    osc.start();
-    osc.stop(context.currentTime + seconds + 0.05);
+function buildBaseMap() {
+  const ocean = new THREE.Mesh(
+    new THREE.CircleGeometry(190, 96),
+    new THREE.MeshStandardMaterial({ color: 0x0b3e5f, roughness: 0.62, metalness: 0.08 })
+  );
+  ocean.rotation.x = -Math.PI / 2;
+  ocean.position.y = -1.15;
+  ocean.receiveShadow = true;
+  root.add(ocean);
+
+  const landGeometry = new THREE.ExtrudeGeometry(makeTaiwanShape(), { depth: 2.8, bevelEnabled: true, bevelSize: 1.15, bevelThickness: 0.65, bevelSegments: 4 });
+  landGeometry.rotateX(Math.PI / 2);
+  landGeometry.translate(0, 0.2, 0);
+  const island = new THREE.Mesh(landGeometry, landMaterial);
+  island.castShadow = true;
+  island.receiveShadow = true;
+  root.add(island);
+
+  const coastGeometry = new THREE.ShapeGeometry(makeTaiwanShape(1.035));
+  coastGeometry.rotateX(-Math.PI / 2);
+  const coast = new THREE.Mesh(coastGeometry, coastMaterial);
+  coast.position.y = -0.98;
+  coast.receiveShadow = true;
+  root.add(coast);
+
+  const ridgePoints = [
+    [2, -39, 5.8], [5, -28, 8.5], [6, -15, 11], [5, -2, 15], [3, 10, 17],
+    [1, 22, 13], [-1, 34, 10], [-3, 48, 7.5]
+  ];
+  ridgePoints.forEach(([x, z, h], i) => {
+    const cone = new THREE.Mesh(
+      new THREE.ConeGeometry(8 - Math.min(i, 5) * 0.35, h, 5),
+      mountainMaterial
+    );
+    cone.position.set(x, h / 2 + 1, z);
+    cone.rotation.y = i * 0.42;
+    cone.castShadow = true;
+    cone.receiveShadow = true;
+    root.add(cone);
   });
+
+  makeIsland(-52, 22, 7.5);
+  makeIsland(-72, 2, 6.8);
+  makeIsland(-58, -48, 5.6);
+  makeIsland(35, 39, 4.2);
+  makeIsland(43, 54, 5.4);
+
+  addCompassRose();
+  addFlightPath();
 }
 
-const conceptDemos = [];
-const SPECTRUM_BARS = 28;
+function addCompassRose() {
+  const group = new THREE.Group();
+  group.position.set(52, 0.05, -58);
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(8, 0.08, 8, 72),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45 })
+  );
+  ring.rotation.x = Math.PI / 2;
+  group.add(ring);
+  const arrow = new THREE.Mesh(
+    new THREE.ConeGeometry(1.2, 5, 3),
+    new THREE.MeshBasicMaterial({ color: 0xf6c45a })
+  );
+  arrow.position.z = -4;
+  arrow.rotation.x = -Math.PI / 2;
+  group.add(arrow);
+  root.add(group);
+}
 
-function spectrumTarget(profile, i, n) {
-  const x = i / (n - 1);
-  switch (profile) {
-    case "bass": return Math.exp(-i / 3.2) * 0.95 + 0.05;
-    case "voice": {
-      const g = (c, w) => Math.exp(-((x - c) ** 2) / (2 * w * w));
-      return Math.min(1, g(0.12, 0.06) * 0.95 + g(0.34, 0.09) * 0.7 + g(0.6, 0.12) * 0.35 + 0.04);
+function addFlightPath() {
+  const points = landmarks.filter((item) => item.region !== "islands").map((item) => new THREE.Vector3(item.x, 2.4, item.z));
+  const curve = new THREE.CatmullRomCurve3(points, false, "catmullrom", 0.35);
+  const geometry = new THREE.TubeGeometry(curve, 220, 0.11, 8, false);
+  const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.22 }));
+  root.add(mesh);
+}
+
+function cylinder(radius, height, color) {
+  const mesh = new THREE.Mesh(
+    new THREE.CylinderGeometry(radius, radius, height, 28),
+    new THREE.MeshStandardMaterial({ color, roughness: 0.55, metalness: 0.05 })
+  );
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  return mesh;
+}
+
+function box(w, h, d, color) {
+  const mesh = new THREE.Mesh(
+    new THREE.BoxGeometry(w, h, d),
+    new THREE.MeshStandardMaterial({ color, roughness: 0.58, metalness: 0.04 })
+  );
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  return mesh;
+}
+
+function cone(r, h, color) {
+  const mesh = new THREE.Mesh(
+    new THREE.ConeGeometry(r, h, 4),
+    new THREE.MeshStandardMaterial({ color, roughness: 0.62 })
+  );
+  mesh.castShadow = true;
+  return mesh;
+}
+
+function addLandmarkModel(item) {
+  const group = new THREE.Group();
+  group.position.set(item.x, 2.5, item.z);
+  group.userData = item;
+  const color = new THREE.Color(palette[item.region]);
+
+  const marker = new THREE.Mesh(new THREE.TorusGeometry(2.3, 0.09, 8, 44), glowMaterial.clone());
+  marker.material.color = color;
+  marker.rotation.x = Math.PI / 2;
+  marker.position.y = 0.05;
+  group.add(marker);
+
+  if (item.model === "tower101") {
+    for (let i = 0; i < 7; i += 1) {
+      const tier = box(2.7 - i * 0.16, 1.2, 2.7 - i * 0.16, 0x9fc7de);
+      tier.position.y = 0.65 + i * 1.08;
+      group.add(tier);
     }
-    case "bird": return Math.exp(-(n - 1 - i) / 3.4) * 0.95 + 0.05;
-    case "noise": return 0.5 + 0.12 * Math.sin(i * 1.7);
-    default: return 0.4;
+    const spire = cone(0.55, 3.8, 0xf6c45a);
+    spire.position.y = 9.9;
+    group.add(spire);
+  } else if (item.model === "lake") {
+    const lake = new THREE.Mesh(new THREE.CircleGeometry(4.4, 48), new THREE.MeshStandardMaterial({ color: 0x247cc2, roughness: 0.3, metalness: 0.08 }));
+    lake.rotation.x = -Math.PI / 2;
+    lake.position.y = 0.16;
+    lake.scale.set(1.25, 0.72, 1);
+    group.add(lake);
+    group.add(cone(2.4, 4.5, 0x486b48));
+  } else if (item.model === "bridge" || item.model === "arch") {
+    for (let i = -2; i <= 2; i += 1) {
+      const pier = cylinder(0.22, 2.2, 0xd7b47a);
+      pier.position.set(i * 1.15, 1.1, 0);
+      group.add(pier);
+    }
+    const deck = box(6.5, 0.35, 0.75, item.model === "arch" ? 0xd8f1ff : 0xb8694c);
+    deck.position.y = 2.15;
+    group.add(deck);
+  } else if (item.model === "temple" || item.model === "pagoda" || item.model === "gate") {
+    const floors = item.model === "pagoda" ? 3 : 2;
+    for (let i = 0; i < floors; i += 1) {
+      const body = box(3.1 - i * 0.35, 0.95, 2.4 - i * 0.22, 0xc95740);
+      body.position.y = 0.55 + i * 1.05;
+      group.add(body);
+      const roof = cone(2.25 - i * 0.22, 0.75, 0xf6c45a);
+      roof.scale.z = 0.72;
+      roof.position.y = 1.2 + i * 1.05;
+      roof.rotation.y = Math.PI / 4;
+      group.add(roof);
+    }
+  } else if (item.model === "lighthouse" || item.model === "harbor") {
+    const tower = cylinder(0.65, 4.2, 0xf4f7fb);
+    tower.position.y = 2.1;
+    group.add(tower);
+    const cap = cylinder(0.95, 0.55, 0xff7d9d);
+    cap.position.y = 4.45;
+    group.add(cap);
+    group.add(box(4.8, 0.25, 1, 0xd7b47a));
+  } else if (item.model === "gorge") {
+    const left = cone(2.5, 6, 0x66735d);
+    left.position.set(-1.7, 3, 0);
+    const right = cone(2.5, 6.5, 0x536956);
+    right.position.set(1.7, 3.25, 0);
+    const river = box(0.7, 0.12, 5.2, 0x41d7c7);
+    river.position.y = 0.2;
+    group.add(left, right, river);
+  } else if (item.model === "fishtrap") {
+    const a = new THREE.Mesh(new THREE.TorusGeometry(1.25, 0.12, 8, 36), new THREE.MeshStandardMaterial({ color: 0xd8d2bd }));
+    const b = a.clone();
+    a.scale.set(1.1, 0.82, 1);
+    b.scale.set(1.1, 0.82, 1);
+    a.position.x = -0.9;
+    b.position.x = 0.9;
+    a.rotation.x = b.rotation.x = Math.PI / 2;
+    group.add(a, b);
+  } else if (item.model === "canoe") {
+    const boat = box(4.2, 0.45, 1.05, 0xd04a38);
+    boat.position.y = 0.45;
+    boat.scale.z = 0.55;
+    group.add(boat);
+    group.add(box(0.2, 2.4, 0.2, 0xf4f7fb));
+  } else if (item.model === "spring") {
+    const pool = new THREE.Mesh(new THREE.TorusGeometry(1.65, 0.22, 10, 40), new THREE.MeshStandardMaterial({ color: 0x41d7c7 }));
+    pool.rotation.x = Math.PI / 2;
+    group.add(pool);
+    for (let i = 0; i < 3; i += 1) {
+      const steam = cylinder(0.06, 2.1, 0xd8f1ff);
+      steam.position.set(-0.7 + i * 0.7, 1.2, 0.2);
+      group.add(steam);
+    }
+  } else if (item.model === "rail") {
+    group.add(box(5.2, 0.18, 0.18, 0xe6e0cf), box(5.2, 0.18, 0.18, 0xe6e0cf));
+    group.children[1].position.z = 0.7;
+    group.children[2].position.z = -0.7;
+    const train = box(1.5, 0.75, 1, 0xff7d9d);
+    train.position.y = 0.55;
+    group.add(train);
+  } else if (item.model === "opera") {
+    const hall = new THREE.Mesh(new THREE.SphereGeometry(2.4, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.58), cityMaterial);
+    hall.scale.set(1.45, 0.82, 1);
+    hall.position.y = 0.55;
+    group.add(hall);
+  } else if (item.model === "rock") {
+    const rock = new THREE.Mesh(new THREE.CapsuleGeometry(0.72, 2.8, 8, 18), new THREE.MeshStandardMaterial({ color: 0xc7b78f, roughness: 0.95 }));
+    rock.position.y = 1.65;
+    group.add(rock);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(1.2, 22, 14), rock.material);
+    head.position.y = 3.35;
+    group.add(head);
+  } else {
+    group.add(box(2.6, 1.5, 2.2, 0x9fc7de), cone(2, 1.2, 0xf6c45a));
   }
+
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 8, 8), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.55 }));
+  beam.position.y = 4;
+  group.add(beam);
+
+  root.add(group);
+  landmarkObjects.set(item.county, group);
 }
 
-function initInteractiveConcepts() {
-  conceptDemos.length = 0;
-  document.querySelectorAll("#conceptGrid .demo-card").forEach((card) => {
-    const canvas = card.querySelector(".demo-canvas");
-    const state = { type: card.dataset.demo, card, canvas, ctx: canvas.getContext("2d"), phase: 0 };
-    if (state.type === "frequency") {
-      const range = card.querySelector(".demo-freq");
-      const out = card.querySelector(".demo-out");
-      state.freq = Number(range.value);
-      range.addEventListener("input", () => {
-        state.freq = Number(range.value);
-        out.textContent = `${state.freq} Hz`;
-      });
-      card.querySelector(".demo-play").addEventListener("click", () => playDemoTone(state.freq, 0.5, 0.8));
-    } else if (state.type === "amplitude") {
-      const range = card.querySelector(".demo-amp");
-      const out = card.querySelector(".demo-out");
-      state.amp = Number(range.value);
-      range.addEventListener("input", () => {
-        state.amp = Number(range.value);
-        out.textContent = `${Math.round(state.amp * 100)}%`;
-      });
-      card.querySelector(".demo-play").addEventListener("click", () => playDemoTone(440, state.amp, 0.7));
-    } else if (state.type === "spectrum") {
-      state.profile = "bass";
-      state.bars = new Array(SPECTRUM_BARS).fill(0.1);
-      state.seeds = Array.from({ length: SPECTRUM_BARS }, () => Math.random() * Math.PI * 2);
-      card.querySelectorAll(".demo-presets button").forEach((button) => {
-        button.addEventListener("click", () => {
-          state.profile = button.dataset.fp;
-          card.querySelectorAll(".demo-presets button").forEach((b) => b.classList.toggle("active", b === button));
-        });
-      });
-    }
-    conceptDemos.push(state);
-  });
-  if (conceptDemos.length && !conceptDemos.running) {
-    conceptDemos.running = true;
-    requestAnimationFrame(animateConcepts);
-  }
-}
-
-function animateConcepts() {
-  conceptDemos.forEach(drawConceptDemo);
-  requestAnimationFrame(animateConcepts);
-}
-
-function drawConceptDemo(state) {
-  const { ctx, canvas } = state;
-  if (canvas.offsetParent === null) return; // skip when the page is hidden
-  const w = canvas.width;
-  const h = canvas.height;
-  drawGrid(ctx, w, h);
-  if (state.type === "frequency") {
-    state.phase += 0.05;
-    const cycles = Math.max(0.6, Math.min(26, state.freq / 60));
-    const hue = state.freq > 700 ? 45 : state.freq > 320 ? 200 : 168;
-    ctx.lineWidth = 4;
-    ctx.strokeStyle = `hsl(${hue}, 82%, 62%)`;
-    ctx.beginPath();
-    for (let x = 0; x <= w; x += 2) {
-      const y = h / 2 + Math.sin((x / w) * cycles * Math.PI * 2 - state.phase) * 72;
-      if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-    }
-    ctx.stroke();
-    ctx.fillStyle = "#e9f2ff";
-    ctx.font = "22px Microsoft JhengHei, sans-serif";
-    ctx.fillText(`${state.freq} Hz`, 24, 38);
-    ctx.fillStyle = "#a8b8cc";
-    ctx.font = "18px Microsoft JhengHei, sans-serif";
-    ctx.fillText(state.freq < 320 ? "低沉" : state.freq < 700 ? "適中" : "尖亮", w - 92, 38);
-  } else if (state.type === "amplitude") {
-    state.phase += 0.05;
-    const amp = state.amp * (h * 0.42);
-    ctx.setLineDash([6, 8]);
-    ctx.lineWidth = 1.5;
-    ctx.strokeStyle = "rgba(168, 184, 204, 0.5)";
-    [h / 2 - h * 0.42, h / 2 + h * 0.42].forEach((y) => {
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+function renderCityList() {
+  const filter = ui.regionFilter.value;
+  ui.cityList.innerHTML = "";
+  landmarks
+    .filter((item) => filter === "all" || item.region === filter)
+    .forEach((item) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "city-button";
+      button.dataset.county = item.county;
+      button.style.setProperty("--city-color", palette[item.region]);
+      button.innerHTML = `<span class="city-dot"></span><span><strong>${item.county}</strong><span>${item.place}</span></span>`;
+      button.addEventListener("click", () => focusLandmark(item));
+      ui.cityList.append(button);
     });
-    ctx.setLineDash([]);
-    ctx.lineWidth = 4;
-    ctx.strokeStyle = state.amp > 0.66 ? "#ff5d93" : state.amp > 0.33 ? "#ffbf3f" : "#18b6a2";
-    ctx.beginPath();
-    for (let x = 0; x <= w; x += 2) {
-      const y = h / 2 + Math.sin((x / w) * 4 * Math.PI * 2 - state.phase) * amp;
-      if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-    }
-    ctx.stroke();
-    ctx.fillStyle = "#e9f2ff";
-    ctx.font = "22px Microsoft JhengHei, sans-serif";
-    ctx.fillText(`振幅 ${Math.round(state.amp * 100)}%`, 24, 38);
-    ctx.fillStyle = "#a8b8cc";
-    ctx.font = "18px Microsoft JhengHei, sans-serif";
-    ctx.fillText(state.amp > 0.66 ? "大聲" : state.amp > 0.33 ? "適中" : "小聲", w - 70, 38);
-  } else if (state.type === "spectrum") {
-    state.phase += 0.06;
-    const n = state.bars.length;
-    const barWidth = w / n;
-    for (let i = 0; i < n; i += 1) {
-      const base = spectrumTarget(state.profile, i, n);
-      const wobble = 0.78 + 0.22 * Math.sin(state.phase * 2 + state.seeds[i]);
-      const target = Math.max(0.04, Math.min(1, base * wobble));
-      state.bars[i] += (target - state.bars[i]) * 0.18;
-      const barHeight = state.bars[i] * h * 0.82;
-      const hue = 170 - (i / n) * 120;
-      ctx.fillStyle = `hsl(${hue}, 84%, ${46 + state.bars[i] * 20}%)`;
-      ctx.fillRect(i * barWidth + 1, h - barHeight, Math.max(1, barWidth - 3), barHeight);
-    }
-    ctx.fillStyle = "#e9f2ff";
-    ctx.font = "20px Microsoft JhengHei, sans-serif";
-    const label = { bass: "低音鼓：低頻強", voice: "人聲：中低頻聚集", bird: "鳥鳴：高頻強", noise: "白噪音：各頻均勻" }[state.profile] || "";
-    ctx.fillText(label, 24, 32);
-  }
+  updateActiveCity();
 }
 
-const resourceSlugMap = {
-  "phet.colorado.edu": "phet",
-  "pedia.cloud.edu.tw": "pedia",
-  "www.cwa.gov.tw": "cwa",
-  "www.cdc.gov": "cdc",
-  "developer.mozilla.org": "mdn",
-  "www.sciencelearn.org.nz": "sciencelearn"
-};
-
-function resourceSlug(url) {
-  try {
-    const host = new URL(url).hostname;
-    return resourceSlugMap[host] || host.replace(/^www\./, "").split(".")[0];
-  } catch {
-    return "";
-  }
-}
-
-async function loadResourceLogos() {
-  try {
-    const response = await fetch("./img/resources/manifest.json");
-    if (!response.ok) throw new Error(String(response.status));
-    return await response.json();
-  } catch {
-    return {};
-  }
-}
-
-function resourceVisual(item, logos) {
-  const slug = resourceSlug(item.url);
-  const entry = logos[slug];
-  if (entry?.logo) {
-    return `<div class="resource-logo"><img src="./img/resources/${entry.logo}" alt="${item.title} 標誌" loading="lazy" /></div>`;
-  }
-  return miniSvg("spectrum");
-}
-
-async function loadContent() {
-  try {
-    const loadJson = async (path) => {
-      const response = await fetch(path);
-      if (!response.ok) throw new Error(`${path} ${response.status}`);
-      return response.json();
-    };
-    const [content, quiz, resources] = await Promise.all([
-      loadJson("./data/content.json"),
-      loadJson("./data/quiz.json"),
-      loadJson("./data/resources.json")
-    ]);
-    document.querySelector("#conceptGrid").innerHTML = content.concepts.map((item) =>
-      conceptDemoMarkup(item)
-    ).join("");
-    initInteractiveConcepts();
-    document.querySelector("#applicationGrid").innerHTML = content.applications.map((item) => `
-      <article class="concept-card">${miniSvg(item.visual)}<h3>${item.title}</h3><p>${item.text}</p></article>
-    `).join("");
-    const resourceLogos = await loadResourceLogos();
-    document.querySelector("#resourceGrid").innerHTML = resources.map((item) => `
-      <article class="resource-card">
-        ${resourceVisual(item, resourceLogos)}
-        <h3><a href="${item.url}" target="_blank" rel="noreferrer">${item.title}</a></h3>
-        <p>${item.description}</p>
-        <p class="resource-meta">${item.type}｜${item.grade}｜檢查日期 ${item.checkedAt}</p>
-      </article>
-    `).join("");
-    renderQuiz(quiz);
-  } catch (error) {
-    const message = `<article class="concept-card"><h3>資料載入失敗</h3><p>請重新整理頁面，或確認 data 資料檔已部署。錯誤：${error.message}</p></article>`;
-    document.querySelector("#conceptGrid").innerHTML = message;
-    document.querySelector("#applicationGrid").innerHTML = "";
-    document.querySelector("#resourceGrid").innerHTML = message;
-    document.querySelector("#quizBox").innerHTML = message;
-  }
-}
-
-function renderQuiz(quiz) {
-  const box = document.querySelector("#quizBox");
-  box.innerHTML = quiz.map((item, index) => `
-    <div class="quiz-item" data-answer="${item.answer}">
-      <p><strong>${index + 1}. ${item.question}</strong></p>
-      <div class="quiz-options">
-        ${item.options.map((option, optionIndex) => `
-          <label><input type="radio" name="q${index}" value="${optionIndex}" /> ${option}</label>
-        `).join("")}
-      </div>
-      <p class="answer-note" hidden>${item.explanation}</p>
-    </div>
-  `).join("");
-  document.querySelector("#quizScore").textContent = `0 / ${quiz.length}`;
-}
-
-document.querySelector("#checkQuiz").addEventListener("click", () => {
-  const items = [...document.querySelectorAll(".quiz-item")];
-  let score = 0;
-  items.forEach((item, index) => {
-    const checked = item.querySelector(`input[name="q${index}"]:checked`);
-    const note = item.querySelector(".answer-note");
-    const correct = checked && Number(checked.value) === Number(item.dataset.answer);
-    if (correct) score += 1;
-    note.hidden = false;
-    note.style.color = correct ? "var(--green)" : "var(--amber)";
+function updateActiveCity() {
+  document.querySelectorAll(".city-button").forEach((button) => {
+    button.classList.toggle("active", selected?.county === button.dataset.county);
   });
-  document.querySelector("#quizScore").textContent = `${score} / ${items.length}`;
+}
+
+function focusLandmark(item) {
+  selected = item;
+  autoTour = false;
+  ui.tourButton.classList.remove("active");
+  const object = landmarkObjects.get(item.county);
+  const target = object.position.clone();
+  const offset = new THREE.Vector3(item.x > 0 ? 17 : -17, 18, item.z > 12 ? 24 : -24);
+  cameraGoal.target.copy(target);
+  cameraGoal.position.copy(target).add(offset);
+  ui.focusName.textContent = item.county;
+  ui.placeCounty.textContent = item.county;
+  ui.placeTitle.textContent = item.place;
+  ui.placeText.textContent = item.note;
+  ui.detail.classList.add("is-visible");
+  updateActiveCity();
+}
+
+function goHome() {
+  selected = null;
+  autoTour = false;
+  if (window.innerWidth < 700) {
+    cameraGoal.position.set(0, 135, 12);
+  } else {
+    cameraGoal.position.set(0, 60, 122);
+  }
+  cameraGoal.target.set(0, 0, 5);
+  camera.position.copy(cameraGoal.position);
+  controls.target.copy(cameraGoal.target);
+  ui.focusName.textContent = "自由飛行";
+  ui.placeCounty.textContent = "DRONE VIEW";
+  ui.placeTitle.textContent = "自由瀏覽台灣";
+  ui.placeText.textContent = "選擇縣市地標，鏡頭會飛到對應位置。每個地標以立體模型呈現，適合課堂導覽、地理介紹與台灣印象探索。";
+  ui.detail.classList.remove("is-visible");
+  updateActiveCity();
+}
+
+function toggleNight() {
+  isNight = !isNight;
+  scene.background.set(isNight ? 0x030711 : 0x07111d);
+  scene.fog.color.set(isNight ? 0x030711 : 0x07111d);
+  sun.intensity = isNight ? 0.55 : 3.2;
+  ui.nightButton.classList.toggle("active", isNight);
+}
+
+function handleKeyboard(delta) {
+  const forward = new THREE.Vector3();
+  camera.getWorldDirection(forward);
+  forward.y = 0;
+  forward.normalize();
+  const right = new THREE.Vector3().crossVectors(forward, camera.up).normalize();
+  const amount = 18 * delta * speedMultiplier;
+  const movement = new THREE.Vector3();
+  if (keyState.has("KeyW")) movement.add(forward);
+  if (keyState.has("KeyS")) movement.sub(forward);
+  if (keyState.has("KeyD")) movement.add(right);
+  if (keyState.has("KeyA")) movement.sub(right);
+  if (keyState.has("KeyE")) movement.y += 1;
+  if (keyState.has("KeyQ")) movement.y -= 1;
+  if (movement.lengthSq() > 0) {
+    autoTour = false;
+    ui.tourButton.classList.remove("active");
+    movement.normalize().multiplyScalar(amount);
+    cameraGoal.position.add(movement);
+    cameraGoal.target.add(movement);
+  }
+}
+
+function updateTour(delta) {
+  if (!autoTour) return;
+  tourClock += delta * speedMultiplier;
+  if (tourClock > 5.2) {
+    tourClock = 0;
+    tourIndex = (tourIndex + 1) % landmarks.length;
+    focusLandmark(landmarks[tourIndex]);
+    autoTour = true;
+    ui.tourButton.classList.add("active");
+  }
+}
+
+function resize() {
+  const width = canvas.clientWidth || window.innerWidth;
+  const height = canvas.clientHeight || window.innerHeight;
+  renderer.setSize(width, height, false);
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  const delta = Math.min(0.05, clock.getDelta());
+  handleKeyboard(delta);
+  updateTour(delta);
+  camera.position.lerp(cameraGoal.position, 0.035);
+  controls.target.lerp(cameraGoal.target, 0.045);
+  controls.update();
+  root.traverse((object) => {
+    if (object.userData?.place) object.rotation.y += delta * 0.5;
+  });
+  ui.altitudeValue.textContent = `${Math.max(0, Math.round(camera.position.y * 95)).toLocaleString()} m`;
+  renderer.render(scene, camera);
+}
+
+buildBaseMap();
+landmarks.forEach(addLandmarkModel);
+renderCityList();
+goHome();
+
+ui.regionFilter.addEventListener("change", renderCityList);
+ui.homeButton.addEventListener("click", goHome);
+ui.nightButton.addEventListener("click", toggleNight);
+ui.tourButton.addEventListener("click", () => {
+  autoTour = !autoTour;
+  ui.tourButton.classList.toggle("active", autoTour);
+  if (autoTour) {
+    tourClock = 9;
+  }
 });
-document.querySelector("#resetQuiz").addEventListener("click", () => {
-  document.querySelectorAll(".quiz-item input").forEach((input) => { input.checked = false; });
-  document.querySelectorAll(".answer-note").forEach((note) => { note.hidden = true; });
-  document.querySelector("#quizScore").textContent = `0 / ${document.querySelectorAll(".quiz-item").length}`;
+ui.speedRange.addEventListener("input", () => {
+  speedMultiplier = Number(ui.speedRange.value);
+  ui.speedValue.textContent = `${speedMultiplier.toFixed(1)}x`;
 });
 
-loadContent();
-loadBioManifest();
-loadMicDevices().catch(() => {});
-updateProgress();
-drawToneWave();
-animateMic();
-animateMedia();
-updateToneLabels();
+window.addEventListener("keydown", (event) => keyState.add(event.code));
+window.addEventListener("keyup", (event) => keyState.delete(event.code));
+window.addEventListener("resize", resize);
+new ResizeObserver(resize).observe(canvas);
+renderer.domElement.addEventListener("pointerdown", () => {
+  autoTour = false;
+  ui.tourButton.classList.remove("active");
+});
+
+const clock = new THREE.Clock();
+resize();
+setTimeout(resize, 120);
+ui.loading.classList.add("hidden");
+animate();

@@ -1,7 +1,7 @@
 {
-  "name": "audio-spectrum-lab",
+  "name": "taiwan-map-codex",
   "version": "1.0.0",
-  "description": "互動式音頻圖與聲音實驗網站",
+  "description": "台灣 3D 立體地景與無人機視角互動導覽",
   "scripts": {
     "start": "vite --host 127.0.0.1",
     "build": "vite build",
@@ -9,6 +9,8 @@
   },
   "devDependencies": {
     "vite": "^7.0.0"
+  },
+  "dependencies": {
+    "three": "^0.185.1"
   }
 }
-
