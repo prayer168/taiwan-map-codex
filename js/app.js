@@ -27,7 +27,9 @@ const root = new THREE.Group();
 scene.add(root);
 
 const ui = {
+  app: document.querySelector(".flight-app"),
   loading: document.querySelector("#loadingState"),
+  navToggle: document.querySelector("#navToggle"),
   cityList: document.querySelector("#cityList"),
   landmarkCount: document.querySelector("#landmarkCount"),
   speedRange: document.querySelector("#speedRange"),
@@ -560,6 +562,11 @@ renderCityList();
 goHome();
 
 ui.homeButton.addEventListener("click", goHome);
+ui.navToggle.addEventListener("click", () => {
+  const collapsed = ui.app.classList.toggle("nav-collapsed");
+  ui.navToggle.setAttribute("aria-expanded", String(!collapsed));
+  ui.navToggle.title = collapsed ? "展開地景清單" : "收合地景清單";
+});
 ui.nightButton.addEventListener("click", toggleNight);
 ui.tourButton.addEventListener("click", () => {
   autoTour = !autoTour;

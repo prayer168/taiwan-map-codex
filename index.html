@@ -13,8 +13,10 @@
     <link rel="stylesheet" href="./css/style.css" />
   </head>
   <body>
-    <main class="flight-app" aria-label="台灣 3D 地景飛行互動體驗">
+    <main class="flight-app nav-collapsed" aria-label="台灣 3D 地景飛行互動體驗">
       <canvas id="taiwanScene" aria-label="台灣 3D 立體地景"></canvas>
+
+      <button id="navToggle" class="nav-toggle" type="button" aria-controls="cityPanel" aria-expanded="false" title="展開地景清單">☰</button>
 
       <section class="hud action-panel" aria-label="地圖控制">
         <button id="tourButton" type="button" title="自動巡航">▶ 自動巡航</button>
@@ -29,16 +31,16 @@
         </label>
       </section>
 
-      <section class="hud city-panel" aria-label="縣市地景列表">
+      <section id="cityPanel" class="hud city-panel" aria-label="縣市地景列表">
         <h2>📍 全縣市著名地景 <span id="landmarkCount">(22)</span></h2>
         <div id="cityList" class="city-list"></div>
       </section>
 
       <section class="hud flight-help" aria-label="操作提示">
         <span>滑鼠拖曳：轉動視角</span>
+        <span>滾輪：拉近拉遠</span>
         <span>方向鍵：飛行</span>
         <span>Q / E：升降</span>
-        <span>滾輪：前進後退</span>
         <span>點擊地景：查看位置</span>
       </section>
 
