@@ -28,7 +28,7 @@ scene.add(root);
 
 const ui = {
   loading: document.querySelector("#loadingState"),
-  cityList: document.querySelector("#cityList"),
+  landmarkSelect: document.querySelector("#landmarkSelect"),
   regionFilter: document.querySelector("#regionFilter"),
   focusName: document.querySelector("#focusName"),
   altitudeValue: document.querySelector("#altitudeValue"),
@@ -422,26 +422,19 @@ function addLandmarkModel(item) {
 
 function renderCityList() {
   const filter = ui.regionFilter.value;
-  ui.cityList.innerHTML = "";
-  landmarks
-    .filter((item) => filter === "all" || item.region === filter)
-    .forEach((item) => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "city-button";
-      button.dataset.county = item.county;
-      button.style.setProperty("--city-color", palette[item.region]);
-      button.innerHTML = `<span class="city-dot"></span><span><strong>${item.county}</strong><span>${item.place}</span></span>`;
-      button.addEventListener("click", () => focusLandmark(item));
-      ui.cityList.append(button);
-    });
+  const options = landmarks.filter((item) => filter === "all" || item.region === filter);
+  ui.landmarkSelect.innerHTML = '<option value="">請選擇縣市地標</option>';
+  options.forEach((item) => {
+    const option = document.createElement("option");
+    option.value = item.county;
+    option.textContent = `${item.county}｜${item.place}`;
+    ui.landmarkSelect.append(option);
+  });
   updateActiveCity();
 }
 
 function updateActiveCity() {
-  document.querySelectorAll(".city-button").forEach((button) => {
-    button.classList.toggle("active", selected?.county === button.dataset.county);
-  });
+  ui.landmarkSelect.value = selected?.county || "";
 }
 
 function focusLandmark(item) {
@@ -555,6 +548,10 @@ renderCityList();
 goHome();
 
 ui.regionFilter.addEventListener("change", renderCityList);
+ui.landmarkSelect.addEventListener("change", () => {
+  const item = landmarks.find((landmark) => landmark.county === ui.landmarkSelect.value);
+  if (item) focusLandmark(item);
+});
 ui.homeButton.addEventListener("click", goHome);
 ui.nightButton.addEventListener("click", toggleNight);
 ui.tourButton.addEventListener("click", () => {

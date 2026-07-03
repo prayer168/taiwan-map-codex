@@ -204,49 +204,22 @@ input[type="range"] {
   margin: 0;
 }
 
-.city-list {
+.landmark-picker {
   display: grid;
   gap: 0.45rem;
-  max-height: calc(100vh - 142px);
-  overflow: auto;
-  padding-right: 0.2rem;
 }
 
-.city-button {
-  display: grid;
-  grid-template-columns: 26px minmax(0, 1fr);
-  gap: 0.55rem;
-  align-items: center;
-  width: 100%;
-  min-height: 54px;
-  padding: 0.55rem;
-  text-align: left;
-}
-
-.city-button.active {
-  border-color: rgba(65, 215, 199, 0.9);
-  background: rgba(65, 215, 199, 0.18);
-}
-
-.city-dot {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: var(--city-color, var(--cyan));
-  box-shadow: 0 0 18px var(--city-color, var(--cyan));
-}
-
-.city-button strong {
-  display: block;
-  line-height: 1.25;
-}
-
-.city-button span:last-child {
-  display: block;
-  margin-top: 0.2rem;
+.landmark-picker span {
   color: var(--muted);
-  font-size: 0.83rem;
-  line-height: 1.25;
+  font-size: 0.9rem;
+}
+
+#landmarkSelect {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 0.85rem;
+  background: rgba(18, 31, 48, 0.94);
+  font-weight: 700;
 }
 
 .place-detail {
@@ -327,10 +300,6 @@ input[type="range"] {
 
   .city-panel {
     order: 3;
-  }
-
-  .city-list {
-    max-height: 260px;
   }
 
   .place-detail {
