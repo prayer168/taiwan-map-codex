@@ -18,6 +18,7 @@ camera.position.set(0, 52, 118);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.07;
+controls.enableZoom = false;
 controls.maxPolarAngle = Math.PI * 0.49;
 controls.minDistance = 18;
 controls.maxDistance = 210;
@@ -496,6 +497,21 @@ function handleKeyboard(delta) {
   }
 }
 
+function handleWheel(event) {
+  event.preventDefault();
+  autoTour = false;
+  ui.tourButton.classList.remove("active");
+  const direction = new THREE.Vector3();
+  camera.getWorldDirection(direction);
+  const distance = cameraGoal.position.distanceTo(cameraGoal.target);
+  const wheelScale = Math.min(2.8, Math.max(-2.8, event.deltaY / 120));
+  const step = Math.max(2.2, distance * 0.09) * wheelScale * speedMultiplier;
+  const nextPosition = cameraGoal.position.clone().addScaledVector(direction, step);
+  const nextDistance = nextPosition.distanceTo(cameraGoal.target);
+  if (nextDistance < controls.minDistance || nextDistance > controls.maxDistance) return;
+  cameraGoal.position.copy(nextPosition);
+}
+
 function updateTour(delta) {
   if (!autoTour) return;
   tourClock += delta * speedMultiplier;
@@ -594,6 +610,7 @@ renderer.domElement.addEventListener("pointerdown", (event) => {
   ui.tourButton.classList.remove("active");
 });
 renderer.domElement.addEventListener("pointerup", pickLandmark);
+renderer.domElement.addEventListener("wheel", handleWheel, { passive: false });
 
 const clock = new THREE.Clock();
 resize();
