@@ -16,8 +16,7 @@ const camera = new THREE.PerspectiveCamera(58, 1, 0.1, 900);
 camera.position.set(0, 52, 118);
 
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
-controls.dampingFactor = 0.07;
+controls.enableDamping = false;
 controls.enableZoom = false;
 controls.maxPolarAngle = Math.PI * 0.49;
 controls.minDistance = 18;
@@ -83,6 +82,7 @@ let tourClock = 0;
 let isNight = false;
 let speedMultiplier = 1;
 let pointerStart = null;
+let isPointerInteracting = false;
 const cameraGoal = {
   position: camera.position.clone(),
   target: controls.target.clone()
@@ -497,14 +497,20 @@ function handleKeyboard(delta) {
   }
 }
 
+function syncCameraGoal() {
+  cameraGoal.position.copy(camera.position);
+  cameraGoal.target.copy(controls.target);
+}
+
 function handleWheel(event) {
   event.preventDefault();
   autoTour = false;
   ui.tourButton.classList.remove("active");
+  syncCameraGoal();
   const direction = new THREE.Vector3();
   camera.getWorldDirection(direction);
   const distance = cameraGoal.position.distanceTo(cameraGoal.target);
-  const wheelScale = Math.min(2.8, Math.max(-2.8, event.deltaY / 120));
+  const wheelScale = -Math.min(2.8, Math.max(-2.8, event.deltaY / 120));
   const step = Math.max(2.2, distance * 0.09) * wheelScale * speedMultiplier;
   const nextPosition = cameraGoal.position.clone().addScaledVector(direction, step);
   const nextDistance = nextPosition.distanceTo(cameraGoal.target);
@@ -542,27 +548,34 @@ function findLandmarkFromObject(object) {
 }
 
 function pickLandmark(event) {
-  if (!pointerStart) return;
+  if (!pointerStart) return false;
   const moved = Math.hypot(event.clientX - pointerStart.x, event.clientY - pointerStart.y);
   pointerStart = null;
-  if (moved > 6) return;
+  if (moved > 6) return false;
   const rect = renderer.domElement.getBoundingClientRect();
   pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
   pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
   raycaster.setFromCamera(pointer, camera);
   const hits = raycaster.intersectObjects([...landmarkObjects.values()], true);
   const item = hits.map((hit) => findLandmarkFromObject(hit.object)).find(Boolean);
-  if (item) focusLandmark(item);
+  if (item) {
+    focusLandmark(item);
+    return true;
+  }
+  return false;
 }
 
 function animate() {
   requestAnimationFrame(animate);
   const delta = Math.min(0.05, clock.getDelta());
-  handleKeyboard(delta);
-  updateTour(delta);
-  camera.position.lerp(cameraGoal.position, 0.035);
-  controls.target.lerp(cameraGoal.target, 0.045);
+  if (!isPointerInteracting) {
+    handleKeyboard(delta);
+    updateTour(delta);
+    camera.position.lerp(cameraGoal.position, 0.055);
+    controls.target.lerp(cameraGoal.target, 0.065);
+  }
   controls.update();
+  if (isPointerInteracting) syncCameraGoal();
   root.traverse((object) => {
     if (object.userData?.place) object.rotation.y += delta * 0.5;
     if (object.userData?.isLandmarkLabel) {
@@ -606,10 +619,26 @@ window.addEventListener("resize", resize);
 new ResizeObserver(resize).observe(canvas);
 renderer.domElement.addEventListener("pointerdown", (event) => {
   pointerStart = { x: event.clientX, y: event.clientY };
+  isPointerInteracting = true;
   autoTour = false;
   ui.tourButton.classList.remove("active");
 });
-renderer.domElement.addEventListener("pointerup", pickLandmark);
+renderer.domElement.addEventListener("pointerup", (event) => {
+  const picked = pickLandmark(event);
+  isPointerInteracting = false;
+  if (!picked) syncCameraGoal();
+});
+renderer.domElement.addEventListener("pointercancel", () => {
+  pointerStart = null;
+  isPointerInteracting = false;
+  syncCameraGoal();
+});
+renderer.domElement.addEventListener("pointerleave", () => {
+  if (!isPointerInteracting) return;
+  pointerStart = null;
+  isPointerInteracting = false;
+  syncCameraGoal();
+});
 renderer.domElement.addEventListener("wheel", handleWheel, { passive: false });
 
 const clock = new THREE.Clock();
