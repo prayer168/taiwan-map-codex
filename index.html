@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="台灣 3D 立體地景，以無人機視角自由飛越各縣市知名地標、山脈、海岸與城市。" />
+    <meta property="og:locale" content="zh_TW" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="台灣 3D 地景飛行" />
+    <meta property="og:title" content="台灣 3D 地景飛行" />
+    <meta property="og:description" content="用無人機視角探索台灣各縣市代表地景。" />
+    <title>台灣 3D 地景飛行</title>
+    <script type="module" crossorigin src="./assets/index-BxQ7JuHC.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-DtGp-Upk.css">
+  </head>
+  <body>
+    <main class="flight-app nav-collapsed" aria-label="台灣 3D 地景飛行互動體驗">
+      <canvas id="taiwanScene" aria-label="台灣 3D 立體地景"></canvas>
+
+      <button id="navToggle" class="nav-toggle" type="button" aria-controls="cityPanel" aria-expanded="false" title="展開地景清單">☰</button>
+
+      <section class="hud action-panel" aria-label="地圖控制">
+        <button id="tourButton" type="button" title="自動巡航">▶ 自動巡航</button>
+        <button id="nightButton" type="button" title="切換環境模式">🔄 環境模式</button>
+        <button id="homeButton" type="button" title="返回全島鳥瞰">🏝 全島鳥瞰</button>
+      </section>
+
+      <section class="hud speed-panel" aria-label="飛行速度">
+        <label class="range-control" for="speedRange">
+          <span>飛行速度</span>
+          <input id="speedRange" type="range" min="0.4" max="2.4" value="1" step="0.1" />
+        </label>
+      </section>
+
+      <section id="cityPanel" class="hud city-panel" aria-label="縣市地景列表">
+        <h2>📍 全縣市著名地景 <span id="landmarkCount">(22)</span></h2>
+        <div id="cityList" class="city-list"></div>
+      </section>
+
+      <section class="hud flight-help" aria-label="操作提示">
+        <span>滑鼠拖曳：轉動視角</span>
+        <span>滾輪：拉近拉遠</span>
+        <span>方向鍵：飛行</span>
+        <span>Q / E：升降</span>
+        <span>點擊地景：查看位置</span>
+      </section>
+
+      <div id="loadingState" class="loading-state">正在生成台灣立體地景...</div>
+    </main>
+
+  </body>
+</html>

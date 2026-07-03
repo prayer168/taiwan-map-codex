@@ -1,0 +1,200 @@
+{
+  "dog": {
+    "file": "dog.ogg",
+    "src": "File:Barking of a dog.ogg",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/a/a2/Barking_of_a_dog.ogg",
+    "size": 82638,
+    "artist": "Amada44",
+    "license": "CC BY-SA 3.0",
+    "credit": "Own work"
+  },
+  "cat": {
+    "file": "cat.ogg",
+    "src": "File:Meow.ogg",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/6/62/Meow.ogg",
+    "size": 14306,
+    "artist": "The original uploader was Dcrosby at English Wikipedia.",
+    "license": "CC BY-SA 3.0",
+    "credit": "Transferred from en.wikipedia to Commons by FSII using CommonsHelper."
+  },
+  "frog": {
+    "file": "frog.oga",
+    "src": "File:Single Frog Croak.oga",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/9/9f/Single_Frog_Croak.oga",
+    "size": 83798,
+    "artist": "MichaeltheFox8621",
+    "license": "CC BY-SA 4.0",
+    "credit": "Own work"
+  },
+  "cricket": {
+    "file": "cricket.oga",
+    "src": "File:Cricket Gryllus bimaculatus Chirps.oga",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/5/5d/Cricket_Gryllus_bimaculatus_Chirps.oga",
+    "size": 427425,
+    "artist": "Rickjpelleg",
+    "license": "CC BY-SA 4.0",
+    "credit": "Own work"
+  },
+  "bee": {
+    "file": "bee.opus",
+    "src": "File:Bee buzzing sound (animal noises).opus",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/0/0f/Bee_buzzing_sound_%28animal_noises%29.opus",
+    "size": 315606,
+    "artist": "Free Sounds Library User Spanac",
+    "license": "CC BY 3.0",
+    "credit": "YouTube: Bee Noise | Free Sound Effects | Animal Sounds – View/save archived versions on archive.org"
+  },
+  "owl": {
+    "file": "owl.wav",
+    "src": "File:Maghreb owl hooting.wav",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/9/94/Maghreb_owl_hooting.wav",
+    "size": 1441870,
+    "artist": "عثمان",
+    "license": "CC BY-SA 4.0",
+    "credit": "Own work"
+  },
+  "whale": {
+    "file": "whale.oga",
+    "src": "File:Humpback-Whale-Song-and-Foraging-Behavior-on-an-Antarctic-Feeding-Ground-pone.0051214.s001.oga",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/1/12/Humpback-Whale-Song-and-Foraging-Behavior-on-an-Antarctic-Feeding-Ground-pone.0051214.s001.oga",
+    "size": 463592,
+    "artist": "Stimpert A, Peavey L, Friedlaender A, Nowacek D",
+    "license": "CC BY 2.5",
+    "credit": "Acoustic File S1 from Stimpert A, Peavey L, Friedlaender A, Nowacek D (2012). \"Humpback Whale Song and Foraging Behavior on an Antarctic Feeding Ground\". PLOS ONE. DOI:10.1371/journal.pone.0051214. PMID 23284666. PMC: 3526533."
+  },
+  "rooster": {
+    "file": "rooster.ogg",
+    "src": "File:Rooster crowing.ogg",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/c/c5/Rooster_crowing.ogg",
+    "size": 39876,
+    "artist": "Filo gèn'",
+    "license": "CC BY-SA 4.0",
+    "credit": "Own work"
+  },
+  "dolphin": {
+    "file": "dolphin.wav",
+    "src": "File:161691 felixblume dolphin-screaming-underwater-in-caribbean-sea-mexico.wav",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/5/5a/161691_felixblume_dolphin-screaming-underwater-in-caribbean-sea-mexico.wav",
+    "size": 6331372,
+    "artist": "The user Felix.Blume\n\nhttps://freesound.org/people/felix.blume/",
+    "license": "CC0",
+    "credit": "Freesound\n\nhttps://freesound.org/people/felix.blume/sounds/161691/"
+  },
+  "cow": {
+    "file": "cow.ogg",
+    "src": "File:Single Cow Moo.ogg",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/a/a5/Single_Cow_Moo.ogg",
+    "size": 53861,
+    "artist": "MichaeltheFox8621",
+    "license": "CC BY-SA 4.0",
+    "credit": "Own work"
+  },
+  "sheep": {
+    "file": "sheep.ogg",
+    "src": "File:Sheep bleating.ogg",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/1/13/Sheep_bleating.ogg",
+    "size": 159655,
+    "artist": "earthcalling",
+    "license": "Public domain",
+    "credit": "Clipped from File:Corner_of_a_sheep_field_in_summer.ogg, originally from http://www.pdsounds.org/audio/download/341/sheepfield.mp3\n\nPDSounds description: http://www.pdsounds.org/sounds/corner_of_a_sheep_field_in_summer\nTransferred by Fæ, clipped by Dcoetzee"
+  },
+  "horse": {
+    "file": "horse.ogg",
+    "src": "File:Wiehern.ogg",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/d/db/Wiehern.ogg",
+    "size": 17541,
+    "artist": "Hü.",
+    "license": "Public domain",
+    "credit": "Own work"
+  },
+  "elephant": {
+    "file": "elephant.ogg",
+    "src": "File:Elephant voice - trumpeting.ogg",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/4/40/Elephant_voice_-_trumpeting.ogg",
+    "size": 18502,
+    "artist": "தகவலுழவன்",
+    "license": "CC0",
+    "credit": "Own work"
+  },
+  "wolf": {
+    "file": "wolf.ogg",
+    "src": "File:Wolf howls.ogg",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/8/87/Wolf_howls.ogg",
+    "size": 371644,
+    "artist": "",
+    "license": "Public domain",
+    "credit": ""
+  },
+  "crow": {
+    "file": "crow.ogg",
+    "src": "File:Carrion Crow (Corvus corone) (W1CDR0001425 BD18).ogg",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/8/8a/Carrion_Crow_%28Corvus_corone%29_%28W1CDR0001425_BD18%29.ogg",
+    "size": 704542,
+    "artist": "",
+    "license": "CC BY-SA 4.0",
+    "credit": "This file has been provided by the British Library from its digital collections. Links to the British Library's website may be broken as the library recovers from a October 2023 cyber attack, and will be updated once material becomes accessible online. For more information on the attack see: https://www.bl.uk/about/cyber-attack It is also made available on a British Library website."
+  },
+  "duck": {
+    "file": "duck.ogg",
+    "src": "File:Anas platyrhynchos - Mallard - XC62258.ogg",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/f/fa/Anas_platyrhynchos_-_Mallard_-_XC62258.ogg",
+    "size": 53498,
+    "artist": "Jonathon Jongsma",
+    "license": "CC BY-SA 3.0",
+    "credit": "http://www.xeno-canto.org/62258"
+  },
+  "cicada": {
+    "file": "cicada.ogg",
+    "src": "File:Florida Cicada Song.ogg",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/c/c3/Florida_Cicada_Song.ogg",
+    "size": 1454775,
+    "artist": "Gatorguy76",
+    "license": "CC BY 3.0",
+    "credit": "Own work by up-loader"
+  },
+  "pig": {
+    "file": "pig.ogg",
+    "src": "File:Pig grunt - Erdie.ogg",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/a/ac/Pig_grunt_-_Erdie.ogg",
+    "size": 12702,
+    "artist": "erdie",
+    "license": "CC BY 3.0",
+    "credit": "This media file comes from Freesound.org, a collection of Creative Commons licensed audio samples.\nFor more information, please see their official website www.freesound.org"
+  },
+  "goat": {
+    "file": "goat.ogg",
+    "src": "File:Herd of goats bleating.ogg",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/b/bc/Herd_of_goats_bleating.ogg",
+    "size": 1271223,
+    "artist": "stephan",
+    "license": "Public domain",
+    "credit": "http://www.pdsounds.org/audio/download/161/ziegengatter.mp3\n\nPDSounds description: http://www.pdsounds.org/sounds/herd_of_goats_bleating\nTransferred by Fæ"
+  },
+  "monkey": {
+    "file": "monkey.ogg",
+    "src": "File:Mantled Howler Monkey (Alouatta palliata) (W ALOUATTA PALLIATA R1 C2).ogg",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/8/81/Mantled_Howler_Monkey_%28Alouatta_palliata%29_%28W_ALOUATTA_PALLIATA_R1_C2%29.ogg",
+    "size": 962590,
+    "artist": "",
+    "license": "CC BY 4.0",
+    "credit": "This file has been provided by the British Library from its digital collections. Links to the British Library's website may be broken as the library recovers from a October 2023 cyber attack, and will be updated once material becomes accessible online. For more information on the attack see: https://www.bl.uk/about/cyber-attack It is also made available on a British Library website."
+  },
+  "snake": {
+    "file": "snake.ogg",
+    "src": "Google Sound Library: animal_hiss_and_rattle",
+    "url": "https://actions.google.com/sounds/v1/animals/animal_hiss_and_rattle.ogg",
+    "size": 130404,
+    "artist": "Google",
+    "license": "Google Sound Library (free to use)",
+    "credit": "Google Sound Library: animal_hiss_and_rattle"
+  },
+  "mosquito": {
+    "file": "mosquito.ogg",
+    "src": "Google Sound Library: buzzing_fly",
+    "url": "https://actions.google.com/sounds/v1/animals/buzzing_fly.ogg",
+    "size": 8865,
+    "artist": "Google",
+    "license": "Google Sound Library (free to use)",
+    "credit": "Google Sound Library: buzzing_fly"
+  }
+}

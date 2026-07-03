@@ -1,0 +1,61 @@
+{
+  "phet": {
+    "logo": "phet.png",
+    "src": "https://phet.colorado.edu/images/phet-logo-trademarked.png",
+    "final": [
+      320,
+      150
+    ]
+  },
+  "pedia": {
+    "logo": "pedia.png",
+    "src": "https://pedia.cloud.edu.tw/Content/Images/logo/logo_small_white.png",
+    "orig": [
+      439,
+      89
+    ],
+    "final": [
+      320,
+      65
+    ]
+  },
+  "cdc": {
+    "logo": "cdc.png",
+    "src": "https://upload.wikimedia.org/wikipedia/commons/e/e3/CDC_logo_2024.png",
+    "final": [
+      320,
+      252
+    ],
+    "license": "Public domain (US federal)"
+  },
+  "mdn": {
+    "logo": "mdn.png",
+    "src": "https://developer.mozilla.org/apple-touch-icon.png",
+    "final": [
+      118,
+      107
+    ],
+    "note": "luminance-keyed white wordmark"
+  },
+  "sciencelearn": {
+    "logo": "sciencelearn.png",
+    "src": "https://www.sciencelearn.org.nz/images/favicon/apple-touch-icon-180x180.png",
+    "orig": [
+      180,
+      180
+    ],
+    "final": [
+      167,
+      155
+    ]
+  },
+  "cwa": {
+    "logo": "cwa.png",
+    "src": "https://www.cwa.gov.tw/V8/assets/img/win10/cwbPinlogo310.png",
+    "final": [
+      261,
+      155
+    ],
+    "note": "CWA emblem keyed to white wave silhouette"
+  }
+}
