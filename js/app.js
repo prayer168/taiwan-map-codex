@@ -440,10 +440,10 @@ function handleKeyboard(delta) {
   const right = new THREE.Vector3().crossVectors(forward, camera.up).normalize();
   const amount = 18 * delta * speedMultiplier;
   const movement = new THREE.Vector3();
-  if (keyState.has("KeyW")) movement.add(forward);
-  if (keyState.has("KeyS")) movement.sub(forward);
-  if (keyState.has("KeyD")) movement.add(right);
-  if (keyState.has("KeyA")) movement.sub(right);
+  if (keyState.has("ArrowUp")) movement.add(forward);
+  if (keyState.has("ArrowDown")) movement.sub(forward);
+  if (keyState.has("ArrowRight")) movement.add(right);
+  if (keyState.has("ArrowLeft")) movement.sub(right);
   if (keyState.has("KeyE")) movement.y += 1;
   if (keyState.has("KeyQ")) movement.y -= 1;
   if (movement.lengthSq() > 0) {
@@ -510,7 +510,12 @@ ui.speedRange.addEventListener("input", () => {
   ui.speedValue.textContent = `${speedMultiplier.toFixed(1)}x`;
 });
 
-window.addEventListener("keydown", (event) => keyState.add(event.code));
+window.addEventListener("keydown", (event) => {
+  if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "KeyQ", "KeyE"].includes(event.code)) {
+    event.preventDefault();
+  }
+  keyState.add(event.code);
+});
 window.addEventListener("keyup", (event) => keyState.delete(event.code));
 window.addEventListener("resize", resize);
 new ResizeObserver(resize).observe(canvas);
