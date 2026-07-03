@@ -92,13 +92,6 @@ select {
   backdrop-filter: blur(16px);
 }
 
-.hero-hud {
-  left: 24px;
-  top: 22px;
-  width: min(430px, calc(100vw - 48px));
-  padding: 1rem 1.1rem;
-}
-
 .eyebrow {
   margin: 0 0 0.35rem;
   color: var(--cyan);
@@ -108,16 +101,9 @@ select {
   text-transform: uppercase;
 }
 
-h1,
-h2,
-p {
+  h2,
+  p {
   margin-top: 0;
-}
-
-h1 {
-  margin-bottom: 0.45rem;
-  font-size: clamp(2rem, 5vw, 4rem);
-  line-height: 1;
 }
 
 h2 {
@@ -319,7 +305,6 @@ input[type="range"] {
   }
 
   .hud,
-  .hero-hud,
   .drone-console {
     position: relative;
     left: auto;
@@ -338,11 +323,6 @@ input[type="range"] {
     bottom: auto;
     width: 100%;
     max-height: none;
-  }
-
-  .hero-hud {
-    order: 1;
-    margin-bottom: 0;
   }
 
   .city-panel {
@@ -369,18 +349,6 @@ input[type="range"] {
 }
 
 @media (max-width: 620px) {
-  .flight-app {
-    min-height: 900px;
-  }
-
-  .hero-hud {
-    padding: 0.85rem;
-  }
-
-  .hero-hud p:not(.eyebrow) {
-    display: none;
-  }
-
   .status-grid {
     grid-template-columns: 1fr 1fr;
   }
